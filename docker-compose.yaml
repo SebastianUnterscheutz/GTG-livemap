@@ -1,0 +1,27 @@
+# Docker Compose file for the [GTG] Live Map application.
+# Defines the services required to run the entire stack:
+# - MariaDB: The main database for storing all persistent data.
+# - Redis: Used for scalable session storage and as a job queue for workers.
+# - App: The main Go application, which can be run in different modes.
+
+version: '3.8'
+
+services:
+  app:
+    container_name: gtg-livemap-app
+    # Tells Docker Compose to build the image using the Dockerfile in the current directory.
+    build: .
+    restart: always
+    volumes:
+      # Mounts the local config.yaml file into the container in read-only mode.
+      # This allows you to change the configuration without rebuilding the image.
+      - ./config.yaml:/config.yaml:ro
+    environment:
+      # This environment variable controls which mode the Go application starts in.
+      # It overrides the default CMD in the Dockerfile.
+      # Options: 'all', 'web', 'scheduler', 'consumer'
+      - APP_MODE=web
+    # The command that will be executed when the container starts.
+    # It runs the compiled Go binary and passes the value of the APP_MODE
+    # environment variable as a command-line argument.
+    command: /gtg-livemap-server -mode ${APP_MODE}

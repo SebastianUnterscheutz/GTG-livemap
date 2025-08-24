@@ -1,6 +1,5 @@
 config.yaml
 docker-compose-s.yaml
 docker-compose-w.yaml
-docker-compose.yaml
 gtg-livemap-server
 .idea
