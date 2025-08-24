@@ -693,9 +693,9 @@
                         return [latLng.lat, latLng.lng, p[2]]; // Heatmap expects [lat, lng, intensity]
                     });
                     heatLayer = L.heatLayer(latLngs, {
-                        radius: 20,
-                        blur: 15,
-                        gradient: {0.2: 'blue', 0.4: 'lime', 0.6: 'yellow', 0.8: 'orange', 1.0: 'red'}
+                        radius: 5,
+                        blur: 10,
+                        gradient: {0.1: 'blue', 0.2: 'lime', 0.3: 'yellow', 0.4: 'orange', 0.5: 'red'}
                     }).addTo(map);
                 } else {
                     alert("No data for heatmap.");
