@@ -41,7 +41,7 @@ COPY --from=builder /gtg-livemap-server /gtg-livemap-server
 
 # Copy the default configuration file. In production, this will typically
 # be overridden by a volume mount, but it's good to have a default.
-COPY config.yaml /config.yaml
+COPY config-example.yaml /config.yaml
 
 # Copy the static frontend assets (HTML, JS, CSS, etc.) into the final image.
 COPY static ./static
