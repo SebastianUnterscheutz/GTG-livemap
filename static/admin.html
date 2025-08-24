@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[GTG] Live Map - Admin Dashboard</title>
+    <link href="/api/v1/cdn/map/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/api/v1/cdn/map/icons/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/api/v1/cdn/map/leaflet.css"/>
+    <style>
+        body {
+            padding: 2rem;
+            background-color: #0d1117;
+            color: #c9d1d9;
+        }
+
+        .card {
+            background-color: rgba(13, 17, 23, 0.7) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #config-map {
+            height: 50vh;
+            border-radius: .375rem;
+            background-color: #212529;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+        }
+
+        .form-control-sm {
+            height: calc(1.5em + .5rem + 2px);
+        }
+
+        .calibration-marker {
+            background-clip: content-box;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+        }
+
+        .marker-wrong {
+            background-color: #dc3545;
+        }
+
+        .marker-correct {
+            background-color: #0d6efd;
+            cursor: move;
+        }
+
+        .marker-test {
+            background-color: #ffc107;
+            border-radius: 50%;
+            border: 1px solid white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid" id="admin-dashboard-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">[GTG] Live Map - Admin Dashboard</h1>
+        <a href="/" class="btn btn-secondary">Back to Landing Page</a>
+    </div>
+    <div id="auth-status-container"></div>
+    <div id="dashboard-content" class="d-none">
+        <div class="card mb-4">
+            <div class="card-header"><h3 class="mb-0">User Management</h3></div>
+            <div class="card-body">
+                <div class="input-group mb-3">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="user-search-input" class="form-control"
+                           placeholder="Search for users by name or ID...">
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle">
+                        <thead>
+                        <tr>
+                            <th>User</th>
+                            <th class="text-center">Account Type</th>
+                            <th class="text-center">Owned Servers</th>
+                            <th class="text-center" style="width: 15%;">Server Limit</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody id="user-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header"><h3 class="mb-0">Map Calibration & View Configurator</h3></div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="map-select" class="form-label">Select Map</label>
+                        <select id="map-select" class="form-select"></select>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="map-status" class="form-text mt-4 pt-2">Please select a map to configure.</div>
+                    </div>
+                </div>
+                <hr>
+                <div id="interactive-calibrator" class="d-none">
+                    <h5 class="card-title">Guided 2-Point Calibration (Scale & Offset)</h5>
+                    <div id="calibrator-step-1">
+                        <p class="small text-muted"><strong>Step 1:</strong> Select a server and a player to establish
+                            the first reference point.</p>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-6">
+                                <label for="calibrator-server-select" class="form-label">Server</label>
+                                <select id="calibrator-server-select" class="form-select" disabled>
+                                    <option>Select a map...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="last-pos-player-select" class="form-label">Player</label>
+                                <div class="input-group">
+                                    <select id="last-pos-player-select" class="form-select" disabled>
+                                        <option>Fetch players...</option>
+                                    </select>
+                                    <button id="fetch-players-btn" class="btn btn-info" disabled>Fetch Player
+                                        Positions
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="small text-muted mt-2">After selecting a player, drag the <strong
+                                class="text-primary">blue marker</strong> to the player's correct visual location on the
+                            map.</p>
+                    </div>
+                    <div id="calibrator-step-2" class="d-none mt-3">
+                        <p class="small text-muted"><strong>Step 2:</strong> Point 1 is set. Now, have the player move
+                            to a new, distant location. Click the button below to fetch their new position and place the
+                            second set of markers.</p>
+                        <button id="fetch-point2-btn" class="btn btn-primary">Fetch Player's New Position for Point 2
+                        </button>
+                    </div>
+                    <div id="calibrator-step-3" class="d-none mt-3">
+                        <p class="small text-muted"><strong>Step 3:</strong> Values calculated. Click "Test" to see how
+                            all recently active players align on the map with the new settings.</p>
+                        <button id="test-calibration-btn" class="btn btn-info">Test Current Calibration</button>
+                    </div>
+                    <div id="calibration-results" class="d-none mt-3">
+                        <h6>Final Calculated Values:</h6>
+                        <pre class="bg-dark p-2 rounded small"><code id="results-code"></code></pre>
+                        <button id="save-calibration-btn" class="btn btn-success">Confirm & Save Calibration</button>
+                        <button id="reset-calibration-btn" class="btn btn-warning ms-2">Start Over</button>
+                        <span id="save-calibration-status" class="ms-2"></span>
+                    </div>
+                </div>
+                <hr>
+                <h5 class="card-title">Default View Position</h5>
+                <div id="config-map-container" class="mb-3" style="display: none;">
+                    <div id="config-map"></div>
+                </div>
+                <div id="map-coords-display"
+                     class="d-flex flex-wrap justify-content-between align-items-center bg-dark p-2 rounded">
+                    <div id="current-coords">Move map to set the default view.</div>
+                    <button id="save-view-btn" class="btn btn-success" disabled>Save Default View</button>
+                </div>
+                <div id="save-status" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="userServersModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content card">
+            <div class="modal-header"><h5 class="modal-title" id="userServersModalLabel">Servers for...</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="userServersModalBody" class="list-group"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/api/v1/cdn/map/bootstrap.bundle.min.js"></script>
+<script src="/api/v1/cdn/map/leaflet.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const API_BASE_URL = '/api/v1';
+        let allMaps = [], configMapInstance, allUsers = [], allServers = [];
+        const calibratorServerSelect = document.getElementById('calibrator-server-select');
+        const fetchPlayersBtn = document.getElementById('fetch-players-btn');
+        const playerSelect = document.getElementById('last-pos-player-select');
+        const mapSelect = document.getElementById('map-select');
+        const mapStatus = document.getElementById('map-status');
+        const interactiveCalibrator = document.getElementById('interactive-calibrator');
+        const calibrationResultsDiv = document.getElementById('calibration-results');
+        const resultsCode = document.getElementById('results-code');
+        const saveCalibrationBtn = document.getElementById('save-calibration-btn');
+        const resetCalibrationBtn = document.getElementById('reset-calibration-btn');
+        const testCalibrationBtn = document.getElementById('test-calibration-btn');
+        const saveViewBtn = document.getElementById('save-view-btn');
+        const currentCoordsDisplay = document.getElementById('current-coords');
+        const userSearchInput = document.getElementById('user-search-input');
+        const userTableBody = document.getElementById('user-table-body');
+        const step1Div = document.getElementById('calibrator-step-1');
+        const step2Div = document.getElementById('calibrator-step-2');
+        const step3Div = document.getElementById('calibrator-step-3');
+        const fetchPoint2Btn = document.getElementById('fetch-point2-btn');
+        const saveCalibrationStatus = document.getElementById('save-calibration-status');
+
+        let calibrationState = {};
+        let calculatedTransform = {};
+        let currentMapConfig = null;
+        let testMarkersLayer = L.layerGroup();
+
+        const fetchData = async (endpoint, options = {}) => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/${endpoint}`, options);
+                if (!res.ok) {
+                    const errorData = await res.json().catch(() => ({error: `HTTP error ${res.status}`}));
+                    throw new Error(errorData.error || 'Unknown API error');
+                }
+                if (res.status === 204) return null;
+                return res.json();
+            } catch (err) {
+                console.error(`API Fetch Error for ${endpoint}:`, err);
+                throw err;
+            }
+        };
+
+        const LCRSCustomSimple = L.Util.extend({}, L.CRS, {
+            projection: L.Projection.LonLat,
+            transformation: new L.Transformation(1 / 12.501, 0, -1 / 12.501, 0),
+            scale(z) {
+                return Math.pow(2, z);
+            },
+            zoom(s) {
+                return Math.log(s) / Math.LN2;
+            },
+            distance(a, b) {
+                const dx = b.lng - a.lng;
+                const dy = b.lat - a.lat;
+                return Math.sqrt(dx * dx + dy * dy);
+            },
+            infinite: true
+        });
+
+        const LTileLayerInvertedY = L.TileLayer.extend({
+            getTileUrl: function (coords) {
+                coords.y = -coords.y - 1;
+                return L.TileLayer.prototype.getTileUrl.call(this, coords);
+            }
+        });
+
+        const armaToLeaflet = (p) => L.latLng(p[1], p[0]);
+
+        const applyCalibration = (armaLatLng, transform) => {
+            const config = transform || currentMapConfig;
+            if (!config) return LCRSCustomSimple.transformation.transform(LCRSCustomSimple.projection.project(armaLatLng));
+
+            const scaleX = config.ScaleX ?? 1.0;
+            const scaleY = config.ScaleY ?? 1.0;
+            const offsetX = config.OffsetX ?? 0;
+            const offsetY = config.OffsetY ?? 0;
+
+            let projected = LCRSCustomSimple.projection.project(armaLatLng);
+            let transformed = LCRSCustomSimple.transformation.transform(projected);
+
+            transformed.x = (transformed.x * scaleX) + offsetX;
+            transformed.y = (transformed.y * scaleY) + offsetY;
+
+            projected = LCRSCustomSimple.transformation.untransform(transformed);
+            return LCRSCustomSimple.projection.unproject(projected);
+        };
+
+        const visualToArma = (visualCalibratedLatLng) => {
+            if (!currentMapConfig) return visualCalibratedLatLng;
+
+            const scaleX = currentMapConfig.ScaleX ?? 1.0;
+            const scaleY = currentMapConfig.ScaleY ?? 1.0;
+            const offsetX = currentMapConfig.OffsetX ?? 0;
+            const offsetY = currentMapConfig.OffsetY ?? 0;
+
+            let projected = LCRSCustomSimple.projection.project(visualCalibratedLatLng);
+            let transformed = LCRSCustomSimple.transformation.transform(projected);
+
+            transformed.x = (transformed.x - offsetX) / scaleX;
+            transformed.y = (transformed.y - offsetY) / scaleY;
+
+            projected = LCRSCustomSimple.transformation.untransform(transformed);
+            return LCRSCustomSimple.projection.unproject(projected);
+        };
+
+        const updateCoordsDisplay = () => {
+            if (!configMapInstance) return;
+            const center = configMapInstance.getCenter();
+            const zoom = configMapInstance.getZoom();
+            const armaCoords = visualToArma(center);
+            currentCoordsDisplay.innerHTML = `<span class="badge bg-secondary me-2">Arma X: ${armaCoords.lng.toFixed(1)}</span><span class="badge bg-secondary me-2">Arma Z: ${armaCoords.lat.toFixed(1)}</span><span class="badge bg-secondary">Zoom: ${zoom}</span>`;
+        };
+
+
+        const loadConfigMap = (mapId) => {
+            if (configMapInstance) configMapInstance.remove();
+            const mapConfig = allMaps.find(m => m.ID == mapId);
+            if (!mapConfig) return;
+            currentMapConfig = mapConfig;
+            resetCalibration();
+
+            mapStatus.innerHTML = `Current calibration:<br><small class="text-muted">ScaleX: ${mapConfig.ScaleX || '1.0'}, ScaleY: ${mapConfig.ScaleY || '1.0'}, OffsetX: ${mapConfig.OffsetX || '0'}, OffsetY: ${mapConfig.OffsetY || '0'}</small>`;
+            interactiveCalibrator.classList.remove('d-none');
+            document.getElementById('config-map-container').style.display = 'block';
+
+            calibratorServerSelect.innerHTML = '<option selected disabled>Select a server...</option>';
+            const serversForMap = allServers.filter(s => s.map_config.ID == mapId);
+            if (serversForMap.length > 0) {
+                serversForMap.forEach(s => calibratorServerSelect.add(new Option(s.name, s.id)));
+                calibratorServerSelect.disabled = false;
+            } else {
+                calibratorServerSelect.innerHTML = '<option>No servers use this map</option>';
+                calibratorServerSelect.disabled = true;
+            }
+
+            const bounds = L.latLngBounds(armaToLeaflet([mapConfig.BoundsSWX, mapConfig.BoundsSWY]), armaToLeaflet([mapConfig.BoundsNEX, mapConfig.BoundsNEY]));
+
+            configMapInstance = L.map('config-map', {crs: LCRSCustomSimple});
+            testMarkersLayer.addTo(configMapInstance);
+
+            if (mapConfig.TilesURL) {
+                new LTileLayerInvertedY(mapConfig.TilesURL, {
+                    bounds: bounds,
+                    noWrap: true,
+                    maxZoom: mapConfig.MaxZoom,
+                    minZoom: mapConfig.MinZoom,
+                    zoomReverse: true,
+                }).addTo(configMapInstance);
+            }
+
+            const initialViewArma = armaToLeaflet([mapConfig.InitialViewLng || 6400, mapConfig.InitialViewLat || 6400]);
+            const calibratedInitialView = applyCalibration(initialViewArma);
+            configMapInstance.setView(calibratedInitialView, mapConfig.InitialViewZoom || 1);
+
+            updateCoordsDisplay();
+            configMapInstance.on('moveend zoomend', updateCoordsDisplay);
+            saveViewBtn.disabled = false;
+        };
+
+        const resetCalibration = () => {
+            clearCalibrationMarkersAndState();
+            playerSelect.innerHTML = '<option>Fetch players...</option>';
+            playerSelect.disabled = true;
+            fetchPlayersBtn.disabled = true;
+            if (calibratorServerSelect.options.length > 0) calibratorServerSelect.selectedIndex = 0;
+        };
+
+        const clearCalibrationMarkersAndState = () => {
+            if (calibrationState.p1_wrong) calibrationState.p1_wrong.remove();
+            if (calibrationState.p1_correct) calibrationState.p1_correct.remove();
+            if (calibrationState.p2_wrong) calibrationState.p2_wrong.remove();
+            if (calibrationState.p2_correct) calibrationState.p2_correct.remove();
+            testMarkersLayer.clearLayers();
+            const allPlayers = calibrationState.allPlayers;
+            calibrationState = {allPlayers: allPlayers};
+            step1Div.classList.remove('d-none');
+            step2Div.classList.add('d-none');
+            step3Div.classList.add('d-none');
+            calibrationResultsDiv.classList.add('d-none');
+        };
+
+        const fetchLatestPlayers = async (isForPoint2 = false) => {
+            const serverId = calibratorServerSelect.value;
+            const btn = isForPoint2 ? fetchPoint2Btn : fetchPlayersBtn;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Fetching...';
+            try {
+                const positions = await fetchData(`public/positions/latest/${serverId}`);
+                calibrationState.allPlayers = positions;
+                if (!isForPoint2) {
+                    if (!positions || positions.length === 0) {
+                        alert("No recent players found on this server.");
+                        return;
+                    }
+                    const guids = positions.map(p => p.playerGuid);
+                    const names = await fetchData('public/players/names', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({guids})
+                    });
+                    playerSelect.innerHTML = '<option selected disabled>Select a player...</option>';
+                    positions.forEach(pos => {
+                        playerSelect.add(new Option(names[pos.playerGuid] || pos.playerGuid, pos.playerGuid));
+                    });
+                    playerSelect.disabled = false;
+                } else {
+                    const newPos = positions.find(p => p.playerGuid === calibrationState.playerGuid);
+                    const p1_arma_coords = [calibrationState.p1_arma.lng, calibrationState.p1_arma.lat];
+                    if (!newPos || (Math.abs(newPos.absolutePosX - p1_arma_coords[0]) < 10 && Math.abs(newPos.absolutePosZ - p1_arma_coords[1]) < 10)) {
+                        alert("Player has not moved significantly. Please move to a distant location and try again.");
+                        return;
+                    }
+                    placePoint2Markers(newPos);
+                }
+            } catch (err) {
+                alert(`Error fetching player data: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = isForPoint2 ? "Fetch Player's New Position for Point 2" : "Fetch Player Positions";
+            }
+        };
+
+        const handlePlayerSelectionForCalibration = (e) => {
+            clearCalibrationMarkersAndState();
+            const guid = e.target.value;
+            if (!guid || playerSelect.selectedIndex === 0) return;
+            const playerData = calibrationState.allPlayers.find(p => p.playerGuid === guid);
+            if (!playerData) return;
+
+            calibrationState.playerGuid = guid;
+            calibrationState.p1_arma = armaToLeaflet([playerData.absolutePosX, playerData.absolutePosZ]);
+
+            const wrongPos = applyCalibration(calibrationState.p1_arma);
+
+            calibrationState.p1_wrong = L.marker(wrongPos, {
+                icon: L.divIcon({
+                    className: 'calibration-marker marker-wrong',
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                })
+            }).addTo(configMapInstance);
+            calibrationState.p1_correct = L.marker(wrongPos, {
+                draggable: true,
+                icon: L.divIcon({
+                    className: 'calibration-marker marker-correct',
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                })
+            }).addTo(configMapInstance);
+            calibrationState.p1_correct.on('dragend', () => {
+                calibrationState.p1_visual = calibrationState.p1_correct.getLatLng();
+                step1Div.classList.add('d-none');
+                step2Div.classList.remove('d-none');
+            });
+            configMapInstance.panTo(wrongPos);
+        };
+
+        const placePoint2Markers = (playerData) => {
+            calibrationState.p2_arma = armaToLeaflet([playerData.absolutePosX, playerData.absolutePosZ]);
+            const wrongPos = applyCalibration(calibrationState.p2_arma);
+
+            calibrationState.p2_wrong = L.marker(wrongPos, {
+                icon: L.divIcon({
+                    className: 'calibration-marker marker-wrong',
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                })
+            }).addTo(configMapInstance);
+            calibrationState.p2_correct = L.marker(wrongPos, {
+                draggable: true,
+                icon: L.divIcon({
+                    className: 'calibration-marker marker-correct',
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                })
+            }).addTo(configMapInstance);
+            calibrationState.p2_correct.on('dragend', () => {
+                calibrationState.p2_visual = calibrationState.p2_correct.getLatLng();
+                calculateFinalTransformation();
+            });
+            configMapInstance.panTo(wrongPos);
+        };
+
+        const calculateFinalTransformation = () => {
+            const {p1_arma, p1_visual, p2_arma, p2_visual} = calibrationState;
+            if (!p1_arma || !p1_visual || !p2_arma || !p2_visual) return;
+
+            const proj = LCRSCustomSimple.projection;
+            const baseTrans = LCRSCustomSimple.transformation;
+
+            const p1 = baseTrans.transform(proj.project(p1_arma));
+            const p2 = baseTrans.transform(proj.project(p2_arma));
+
+            const v1 = baseTrans.transform(proj.project(p1_visual));
+            const v2 = baseTrans.transform(proj.project(p2_visual));
+
+            if (Math.abs(p2.x - p1.x) < 1 || Math.abs(p2.y - p1.y) < 1) {
+                resultsCode.textContent = "Error: Arma points are too close.";
+                calibrationResultsDiv.classList.remove('d-none');
+                return;
+            }
+
+            const scaleX = (v2.x - v1.x) / (p2.x - p1.x);
+            const scaleY = (v2.y - v1.y) / (p2.y - p1.y);
+            const offsetX = v1.x - (scaleX * p1.x);
+            const offsetY = v1.y - (scaleY * p1.y);
+
+            calculatedTransform = {
+                ScaleX: scaleX,
+                ScaleY: scaleY,
+                OffsetX: offsetX,
+                OffsetY: offsetY
+            };
+
+            resultsCode.textContent = `ScaleX: ${calculatedTransform.ScaleX.toFixed(8)}\nScaleY: ${calculatedTransform.ScaleY.toFixed(8)}\nOffsetX: ${calculatedTransform.OffsetX.toFixed(4)}\nOffsetY: ${calculatedTransform.OffsetY.toFixed(4)}`;
+
+            step2Div.classList.add('d-none');
+            step3Div.classList.remove('d-none');
+            calibrationResultsDiv.classList.remove('d-none');
+        };
+
+        const setupEventListeners = () => {
+            mapSelect.addEventListener('change', (e) => loadConfigMap(e.target.value));
+            calibratorServerSelect.addEventListener('change', () => {
+                fetchPlayersBtn.disabled = false;
+            });
+            userSearchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const filteredUsers = allUsers.filter(user => user.username.toLowerCase().includes(searchTerm) || user.id.toString().includes(searchTerm));
+                renderUserTable(filteredUsers);
+            });
+            fetchPlayersBtn.addEventListener('click', () => fetchLatestPlayers(false));
+            fetchPoint2Btn.addEventListener('click', () => fetchLatestPlayers(true));
+            playerSelect.addEventListener('change', handlePlayerSelectionForCalibration);
+            resetCalibrationBtn.addEventListener('click', resetCalibration);
+
+            testCalibrationBtn.addEventListener('click', () => {
+                testMarkersLayer.clearLayers();
+                if (!calibrationState.allPlayers || !calibrationState.allPlayers.length) {
+                    alert("Please fetch player positions first.");
+                    return;
+                }
+
+                calibrationState.allPlayers.forEach(posData => {
+                    const armaLatLng = armaToLeaflet([posData.absolutePosX, posData.absolutePosZ]);
+                    const finalPos = applyCalibration(armaLatLng, calculatedTransform);
+                    L.marker(finalPos, {
+                        icon: L.divIcon({className: 'marker-test', iconSize: [8, 8], iconAnchor: [4, 4]})
+                    }).addTo(testMarkersLayer);
+                });
+                alert(`${calibrationState.allPlayers.length} test markers placed with the new calibration.`);
+            });
+
+            saveCalibrationBtn.addEventListener('click', async () => {
+                if (calculatedTransform.ScaleX === undefined) {
+                    alert("Please perform a calibration first.");
+                    return;
+                }
+                saveCalibrationStatus.textContent = 'Saving...';
+                const mapId = mapSelect.value;
+                try {
+                    const response = await fetchData(`admin/maps/${mapId}/calibrate`, {
+                        method: 'PATCH',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(calculatedTransform)
+                    });
+                    saveCalibrationStatus.innerHTML = `<strong class="text-success">${response.message}. Reloading map...</strong>`;
+                    setTimeout(() => {
+                        const mapConf = allMaps.find(m => m.ID == mapId);
+                        Object.assign(mapConf, calculatedTransform);
+                        loadConfigMap(mapId);
+                    }, 1500);
+                } catch (err) {
+                    saveCalibrationStatus.innerHTML = `<strong class="text-danger">${err.message}</strong>`;
+                }
+            });
+
+            saveViewBtn.addEventListener('click', async () => {
+                if (!configMapInstance) return;
+                saveViewBtn.disabled = true;
+                document.getElementById('save-status').innerHTML = `<span class="text-info">Saving...</span>`;
+                const centerLeaflet = configMapInstance.getCenter();
+                const zoom = configMapInstance.getZoom();
+                const mapId = mapSelect.value;
+                const armaCoords = visualToArma(centerLeaflet);
+                try {
+                    await fetchData(`maps/${mapId}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({lat: armaCoords.lat, lng: armaCoords.lng, zoom: zoom})
+                    });
+                    document.getElementById('save-status').innerHTML = `<strong class="text-success">Default view updated!</strong>`;
+                } catch (e) {
+                    document.getElementById('save-status').innerHTML = `<span class="text-danger">Error: ${e.message}</span>`;
+                } finally {
+                    saveViewBtn.disabled = false;
+                }
+            });
+        };
+
+        const initialize = async () => {
+            try {
+                const me = await fetchData('users/me');
+                if (!me || me.account_type !== 'admin') {
+                    throw new Error("Access denied.");
+                }
+                document.getElementById('dashboard-content').classList.remove('d-none');
+
+                allMaps = await fetchData('public/map-configs');
+                mapSelect.innerHTML = '<option selected disabled value="">Select a map...</option>';
+                allMaps.forEach(m => mapSelect.add(new Option(m.Name, m.ID)));
+
+                setupEventListeners();
+
+                allUsers = await fetchData('admin/users');
+                renderUserTable(allUsers);
+
+                const serverSet = new Map();
+                for (const user of allUsers) {
+                    const userServers = await fetchData(`admin/users/${user.id}/servers`);
+                    [...userServers.owned, ...userServers.shared].forEach(s => {
+                        if (s && s.id && !serverSet.has(s.id)) {
+                            serverSet.set(s.id, s);
+                        }
+                    });
+                }
+                allServers = Array.from(serverSet.values());
+            } catch (err) {
+                document.getElementById('dashboard-content').classList.add('d-none');
+                document.getElementById('auth-status-container').innerHTML = `<div class="alert alert-danger text-center"><h3>Access Denied</h3><p>${err.message}</p><a href="/auth/discord/login" class="btn btn-primary">Login as Admin</a></div>`;
+            }
+        };
+
+        // Full function implementations that were previously collapsed
+        renderUserTable = (users) => {
+            const userTableBody = document.getElementById('user-table-body');
+            userTableBody.innerHTML = '';
+            if (!users || users.length === 0) {
+                userTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No users found.</td></tr>';
+                return;
+            }
+            users.forEach(user => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td><img src="${user.avatar}" alt="${user.username}" class="avatar me-2"><strong>${user.username}</strong><br><small class="text-muted">ID: ${user.id}</small></td><td class="text-center">${user.account_type}</td><td class="text-center">${user.owned_server_count}</td><td class="text-center"><input type="number" class="form-control form-control-sm text-center" value="${user.max_servers}" min="0" data-userid="${user.id}" ${user.account_type === 'admin' ? 'disabled' : ''}></td><td class="text-end"><button class="btn btn-sm btn-info view-servers-btn" data-userid="${user.id}" data-username="${user.username}" title="View User's Servers"><i class="bi bi-hdd-stack"></i></button><button class="btn btn-sm btn-success save-limit-btn" data-userid="${user.id}" title="Save Server Limit"><i class="bi bi-save"></i></button></td>`;
+                userTableBody.appendChild(tr);
+            });
+            attachUserActionListeners();
+        };
+        attachUserActionListeners = () => {
+            const userServersModal = new bootstrap.Modal(document.getElementById('userServersModal'));
+            const userServersModalLabel = document.getElementById('userServersModalLabel');
+            const userServersModalBody = document.getElementById('userServersModalBody');
+            document.querySelectorAll('.save-limit-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const userId = e.currentTarget.dataset.userid;
+                    const input = document.querySelector(`input[data-userid="${userId}"]`);
+                    const newLimit = parseInt(input.value, 10);
+                    if (isNaN(newLimit) || newLimit < 0) {
+                        alert("Please enter a valid, non-negative number.");
+                        return;
+                    }
+                    try {
+                        await fetchData(`admin/users/${userId}/limit`, {
+                            method: 'PUT',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({max_servers: newLimit})
+                        });
+                        alert(`Limit for user ${userId} updated successfully.`);
+                        btn.classList.remove('btn-warning');
+                        btn.classList.add('btn-success');
+                    } catch (err) {
+                        alert(`Error updating limit: ${err.message}`);
+                    }
+                });
+            });
+            document.querySelectorAll('input[data-userid]').forEach(input => {
+                input.addEventListener('input', e => {
+                    const saveBtn = document.querySelector(`.save-limit-btn[data-userid="${e.target.dataset.userid}"]`);
+                    saveBtn.classList.remove('btn-success');
+                    saveBtn.classList.add('btn-warning');
+                });
+            });
+            document.querySelectorAll('.view-servers-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+                const userId = e.currentTarget.dataset.userid;
+                const username = e.currentTarget.dataset.username;
+                userServersModalLabel.textContent = `Servers for ${username}`;
+                userServersModalBody.innerHTML = '<div class="text-center"><div class="spinner-border"></div></div>';
+                userServersModal.show();
+                try {
+                    const servers = await fetchData(`admin/users/${userId}/servers`);
+                    if (!servers || (!servers.owned.length && !servers.shared.length)) {
+                        userServersModalBody.innerHTML = '<div class="list-group-item bg-transparent text-muted">This user has no servers.</div>';
+                        return;
+                    }
+                    let html = '';
+                    if (servers.owned.length) {
+                        html += '<h6>Owned Servers:</h6>';
+                        servers.owned.forEach(s => html += `<div class="list-group-item bg-transparent d-flex justify-content-between"><span>${s.name}</span><small class="text-muted">Map: ${s.map_config.Name}</small></div>`);
+                    }
+                    if (servers.shared.length) {
+                        html += '<h6 class="mt-3">Shared With User:</h6>';
+                        servers.shared.forEach(s => html += `<div class="list-group-item bg-transparent d-flex justify-content-between"><span>${s.name}</span><small class="text-muted">Map: ${s.map_config.Name}</small></div>`);
+                    }
+                    userServersModalBody.innerHTML = html;
+                } catch (err) {
+                    userServersModalBody.innerHTML = `<div class="alert alert-danger">Failed to load servers: ${err.message}</div>`;
+                }
+            }));
+        };
+
+        initialize();
+    });
+</script>
+</body>
+</html>

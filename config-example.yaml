@@ -1,0 +1,21 @@
+database:
+  host: "HOSTNAME"
+  port: 3306
+  user: "USERNAME"
+  password: "PASSWORT"
+  dbname: "DBNAME"
+server:
+  port: 8080
+discord:
+  client_id: "client_id"
+  client_secret: "client_secret-6PNMC"
+  redirect_uri: "redirect_uri"
+encryption:
+  aes_key: "aes_key"
+session:
+  secret: "secret"
+redis:
+  addr: "HOSTNAME:PORT"
+  username: "USERNAME"
+  password: "PASSWORT"
+  db: 0        # Standard-DB

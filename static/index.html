@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[GTG] Live Map - Tactical View for Arma Reforger</title>
+    <meta name="description" content="[GTG] Live Map: A real-time tactical map for Arma Reforger servers, featuring replays, heatmaps, and Discord integration. Sign up and connect your server today!">
+
+    <link href="/api/v1/cdn/map/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/api/v1/cdn/map/icons/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/api/v1/cdn/map/leaflet.css" />
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; background-image: url('https://gtg-arma.de/img/background.webp'); background-size: cover; background-position: center center; background-attachment: fixed; }
+        .glass-nav, .glass-pane { background: rgba(13, 17, 23, 0.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .hero { min-height: 80vh; padding-top: 120px; }
+        .section { padding: 80px 0; }
+        .section-title { text-align: center; margin-bottom: 50px; font-weight: bold; font-size: 2.5rem; }
+        .feature-icon { font-size: 3rem; color: #58a6ff; }
+        .preview-map { height: 250px; width: 100%; border-top-left-radius: .375rem; border-top-right-radius: .375rem; background-color: #0d1117; }
+        #demo-map { height: 500px; width: 100%; border-radius: .375rem; border: 1px solid rgba(255, 255, 255, 0.1); }
+        .leaflet-container { background-color: #0d1117; }
+        .btn-login { font-size: 1.25rem; padding: 0.75rem 1.5rem; font-weight: 600; }
+        .dropdown-menu { background-color: rgba(30, 35, 41, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .card.glass-pane { background: rgba(13, 17, 23, 0.6); }
+        #cookie-banner { position: fixed; bottom: -200px; left: 0; right: 0; padding: 1.5rem; z-index: 1055; transition: transform 0.5s ease-in-out; }
+        #cookie-banner.show { transform: translateY(-200px); }
+        #cookie-banner .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark fixed-top glass-nav">
+    <div class="container">
+        <a class="navbar-brand d-flex align-items-center" href="/">
+            <i class="bi bi-broadcast-pin me-2 fs-4"></i>
+            <span class="fw-bold">[GTG] Live Map</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto align-items-center">
+                <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
+                <li class="nav-item"><a class="nav-link" href="#demo">Live Demo</a></li>
+                <li class="nav-item"><a class="nav-link" href="#maps">Maps</a></li>
+                <li id="user-display" class="nav-item ms-lg-2 mt-2 mt-lg-0"></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<main>
+    <section class="hero d-flex align-items-center justify-content-center text-center">
+        <div class="container">
+            <div class="glass-pane p-5 rounded-4">
+                <h1 class="display-3 fw-bold mb-3">[GTG] Live Map for Arma Reforger</h1>
+                <p class="lead mb-4 mx-auto" style="max-width: 700px;">Take your operations to the next level with real-time tracking, replays, heatmaps, and full Discord integration.</p>
+                <div id="hero-login-button-container">
+                    <a href="/auth/discord/login" class="btn btn-lg btn-success discord-button btn-login"><i class="bi bi-discord me-2"></i> Login with Discord & Get Started</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="section">
+        <div class="container">
+            <h2 class="section-title">Feature Overview</h2>
+            <div class="row g-4 text-center">
+                <div class="col-md-4"><div class="glass-pane p-4 h-100 rounded-3"><div class="feature-icon mb-3"><i class="bi bi-broadcast"></i></div><h5>Real-time Tracking</h5><p>See player and vehicle positions live on the map. Maintain an overview of the entire battlefield.</p></div></div>
+                <div class="col-md-4"><div class="glass-pane p-4 h-100 rounded-3"><div class="feature-icon mb-3"><i class="bi bi-collection-play"></i></div><h5>Powerful Replays</h5><p>Rewind time and analyze past operations, engagements, and movements step by step.</p></div></div>
+                <div class="col-md-4"><div class="glass-pane p-4 h-100 rounded-3"><div class="feature-icon mb-3"><i class="bi bi-fire"></i></div><h5>Heatmap Analysis</h5><p>Visualize movement patterns and hotspots on the map to gain strategic insights.</p></div></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="demo" class="section bg-dark bg-opacity-25">
+        <div class="container">
+            <h2 class="section-title">Live in Action</h2>
+            <div class="glass-pane p-3 p-md-4 rounded-3">
+                <div id="demo-map"><div class="d-flex h-100 justify-content-center align-items-center"><div class="spinner-border" style="width: 3rem; height: 3rem;"></div></div></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="maps" class="section">
+        <div class="container">
+            <h2 class="section-title">Available Maps</h2>
+            <div id="map-previews-container" class="row g-4">
+                <div class="col-12 text-center"><div class="spinner-border text-light"></div></div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer class="footer mt-auto py-4">
+    <div class="container text-center">
+        <span class="text-white-50 small">© 2025 [GTG] Live Map</span>
+        <div class="mt-2">
+            <a href="https://event.gtg-arma.de/impressum.html" target="_blank" class="text-white-50 text-decoration-none small mx-2">Impressum</a>
+            <a href="/privacy.html" class="text-white-50 text-decoration-none small mx-2">Privacy Policy</a>
+        </div>
+    </div>
+</footer>
+
+<div id="cookie-banner" class="glass-pane">
+    <div class="container">
+        <div class="text-white-50">
+            <p class="mb-0">This website uses technically necessary cookies to ensure login functionality. By continuing to use the site, you agree to this. For more information, please see our Privacy Policy.</p>
+        </div>
+        <div>
+            <button class="btn btn-primary" id="accept-cookies">Accept</button>
+        </div>
+    </div>
+</div>
+
+<script src="/api/v1/cdn/map/bootstrap.bundle.min.js"></script>
+<script src="/api/v1/cdn/map/leaflet.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const userDisplay = document.getElementById('user-display');
+        const heroLoginContainer = document.getElementById('hero-login-button-container');
+
+        const edge_to_center_offset = 50;
+        L.CRS.CustomSimple = L.Util.extend({}, L.CRS, {
+            projection: L.Projection.LonLat,
+            transformation: new L.Transformation(1/12.501, 0, -1/12.501, 0),
+            scale(zoom) { return Math.pow(2, zoom); },
+            zoom(scale) { return Math.log(scale) / Math.LN2; },
+            distance(latlng1, latlng2) { const dx = latlng2.lng - latlng1.lng; const dy = latlng2.lat - latlng1.lat; return Math.sqrt(dx * dx + dy * dy); },
+            infinite: true
+        });
+        L.TileLayer.InvertedY = L.TileLayer.extend({
+            getTileUrl: function(coords) {
+                coords.y = -coords.y - 1;
+                return L.TileLayer.prototype.getTileUrl.call(this, coords);
+            }
+        });
+        const armaToLeaflet = (coordPair) => {
+            return L.latLng(coordPair[1] + edge_to_center_offset, coordPair[0] + edge_to_center_offset);
+        };
+
+        const updateUserDisplay = (user) => {
+            if (user && user.id) {
+                userDisplay.innerHTML = `<div class="dropdown"><a href="#" class="d-block link-light text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><img src="${user.avatar}" width="32" height="32" class="rounded-circle"></a><ul class="dropdown-menu dropdown-menu-dark text-small"><li><a class="dropdown-item" href="/dashboard.html">Dashboard</a></li><li><a class="dropdown-item" href="/map.html">Live Map</a></li><li><hr class="dropdown-divider"></li><li><a class="dropdown-item" href="/auth/logout">Logout</a></li></ul></div>`;
+                heroLoginContainer.innerHTML = `<a href="/dashboard.html" class="btn btn-lg btn-primary btn-login"><i class="bi bi-speedometer2 me-2"></i> Go to Dashboard</a>`;
+            } else {
+                userDisplay.innerHTML = `<a href="/auth/discord/login" class="btn btn-outline-light">Login</a>`;
+                heroLoginContainer.innerHTML = `<a href="/auth/discord/login" class="btn btn-lg btn-success discord-button btn-login"><i class="bi bi-discord me-2"></i> Login with Discord & Get Started</a>`;
+            }
+        };
+
+        const checkAuth = async () => { try { const res = await fetch('/api/v1/users/me'); if (!res.ok) throw new Error(); updateUserDisplay(await res.json()); } catch (e) { updateUserDisplay(null); } };
+
+        // ★★★ KOMPLETT NEUE `initDemoMap`-FUNKTION ★★★
+        const initDemoMap = async () => {
+            const demoMapContainer = document.getElementById('demo-map');
+            try {
+                const demoData = await (await fetch('/api/v1/public/demo-data')).json();
+
+                const mapConfig = demoData.map_config;
+                if (!mapConfig) throw new Error("Demo server has no map configuration.");
+
+                const bounds = L.latLngBounds(armaToLeaflet([mapConfig.BoundsSWX, mapConfig.BoundsSWY]), armaToLeaflet([mapConfig.BoundsNEX, mapConfig.BoundsNEY]));
+                const demoMap = L.map('demo-map', { crs: L.CRS.CustomSimple, attributionControl: false, zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
+
+                if (mapConfig.TilesURL) {
+                    new L.TileLayer.InvertedY(mapConfig.TilesURL, { noWrap: true, bounds: bounds, zoomReverse: true, minZoom: mapConfig.MinZoom, maxZoom: mapConfig.MaxZoom }).addTo(demoMap);
+                }
+
+                demoMap.fitBounds(bounds).zoomOut(1); // Finde eine gute Ansicht
+                demoMap.setMaxBounds(bounds.pad(0.2));
+
+                if (demoData.positions && demoData.positions.length > 0) {
+                    demoData.positions.forEach(p => {
+                        const r=Math.round(p.Faction.ColorR*255),g=Math.round(p.Faction.ColorG*255),b=Math.round(p.Faction.ColorB*255);
+                        const color=`#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+                        L.circleMarker(armaToLeaflet([p.AbsolutePosX, p.AbsolutePosZ]), { radius: 6, color: 'white', weight: 1, fillColor: color, fillOpacity: 1 }).addTo(demoMap);
+                    });
+                }
+            } catch (e) {
+                console.error('Demo map failed to load:', e);
+                demoMapContainer.innerHTML = '<div class="d-flex h-100 align-items-center justify-content-center"><p class="text-muted p-5">No demo server available at the moment.</p></div>';
+            }
+        };
+
+        const initMapPreviews = async () => {
+            const container = document.getElementById('map-previews-container');
+            if (!container) return;
+            try {
+                const response = await fetch('/api/v1/public/map-configs');
+                const maps = await response.json();
+                if (!maps || maps.length === 0) { container.innerHTML = '<p class="text-center text-muted">No maps available.</p>'; return; }
+
+                container.innerHTML = '';
+                maps.forEach(mapConfig => {
+                    const col = document.createElement('div'); col.className = 'col-lg-4 col-md-6';
+                    const mapId = `preview-map-${mapConfig.ID}`;
+                    col.innerHTML = `<div class="card glass-pane h-100"><div id="${mapId}" class="preview-map"></div><div class="card-body"><h5 class="card-title text-white">${mapConfig.Name}</h5></div></div>`;
+                    container.appendChild(col);
+
+                    setTimeout(() => {
+                        try {
+                            const bounds = L.latLngBounds(armaToLeaflet([mapConfig.BoundsSWX, mapConfig.BoundsSWY]), armaToLeaflet([mapConfig.BoundsNEX, mapConfig.BoundsNEY]));
+                            const previewMap = L.map(mapId, { crs: L.CRS.CustomSimple, attributionControl: false, zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
+
+                            if (mapConfig.TilesURL) {
+                                new L.TileLayer.InvertedY(mapConfig.TilesURL, { noWrap: true, bounds: bounds, zoomReverse: true, minZoom: mapConfig.MinZoom, maxZoom: mapConfig.MaxZoom }).addTo(previewMap);
+                            }
+
+                            if (mapConfig.InitialViewLat != null) { previewMap.setView([mapConfig.InitialViewLat, mapConfig.InitialViewLng], mapConfig.InitialViewZoom); }
+                            else { previewMap.setView(bounds.getCenter(), mapConfig.MinZoom + 1); }
+                            previewMap.setMaxBounds(bounds.pad(0.2));
+                        } catch (mapError) {
+                            console.error(`Could not initialize preview map ${mapId}:`, mapError);
+                            document.getElementById(mapId).innerHTML = `<div class="d-flex h-100 align-items-center justify-content-center bg-dark text-danger">Map Error</div>`;
+                        }
+                    }, 0);
+                });
+            } catch(e) { console.error("Failed to load map previews:", e); container.innerHTML = '<p class="text-center text-danger">Could not load map previews.</p>'; }
+        };
+
+        const cookieBanner = document.getElementById('cookie-banner');
+        const acceptButton = document.getElementById('accept-cookies');
+        const getCookie = (name) => { const value = `; ${document.cookie}`; const parts = value.split(`; ${name}=`); if (parts.length === 2) return parts.pop().split(';').shift(); }
+
+        acceptButton.addEventListener('click', () => {
+            const d = new Date(); d.setTime(d.getTime() + (365*24*60*60*1000));
+            document.cookie = "cookie_consent=true;expires=" + d.toUTCString() + ";path=/";
+            cookieBanner.classList.remove('show');
+        });
+
+        if (!getCookie('cookie_consent')) {
+            setTimeout(() => { cookieBanner.classList.add('show'); }, 500);
+        }
+
+        checkAuth();
+        initDemoMap();
+        initMapPreviews();
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,48 @@
+name: Build and Push Docker Image
+
+# Dieser Workflow wird bei jedem Push zum 'main'-Branch ausgeführt.
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest  # Verwendet einen Standard-Linux-Runner
+
+    steps:
+      # Schritt 1: Code auschecken
+      # Lädt den Quellcode Ihres Repositories auf den Runner.
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Schritt 2: Docker Meta-Informationen vorbereiten
+      # Erstellt automatisch Tags für das Docker-Image,
+      # z.B. gitea.meinedomain.de/user/repo:latest, gitea.meinedomain.de/user/repo:1.0.0 (bei Tags)
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ secrets.DOCKER_REGISTRY }}/${{ gitea.repository_owner }}/${{ gitea.repository_name }}
+          flavor: |
+           latest=auto
+
+      # Schritt 3: An der Gitea Docker Registry anmelden
+      # Verwendet die Secrets, die wir vorher angelegt haben.
+      - name: Log in to Gitea Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.GTG_GITEA_TOKEN  }} # oder DOCKER_PASSWORD
+
+      # Schritt 4: Docker Image bauen und pushen
+      # Baut das Image basierend auf unserem Dockerfile und lädt es in die Registry hoch.
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

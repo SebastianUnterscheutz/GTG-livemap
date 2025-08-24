@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - [GTG] Live Map</title>
+    <link href="/api/v1/cdn/map/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/api/v1/cdn/map/icons/bootstrap-icons.min.css">
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; background-image: url('https://gtg-arma.de/img/background.webp'); background-size: cover; background-position: center center; background-attachment: fixed; }
+        .glass-nav { background: rgba(13, 17, 23, 0.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .dashboard-card { background: rgba(13, 17, 23, 0.6); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .list-group-item { background-color: rgba(33, 37, 41, 0.6) !important; border-color: rgba(255, 255, 255, 0.1) !important; color: #c9d1d9; }
+        .modal-content { background-color: rgba(13, 17, 23, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .accordion-button { background-color: rgba(255,255,255,0.05); color: #c9d1d9; }
+        .accordion-button:not(.collapsed) { background-color: rgba(88, 166, 255, 0.2); color: #fff; }
+        .accordion-button:focus { box-shadow: 0 0 0 .25rem rgba(88, 166, 255, 0.5); }
+        .accordion-item { border-color: rgba(255, 255, 255, 0.1); }
+        .accordion-body code, .modal-body code { color: #ffc107; background-color: rgba(0,0,0,0.3); padding: 0.2rem 0.4rem; border-radius: 4px; }
+        .search-results { position: absolute; background-color: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: .375rem; width: 100%; z-index: 1056; max-height: 200px; overflow-y: auto; }
+        .avatar-sm { width: 24px; height: 24px; }
+        .dropdown-menu { background-color: rgba(30, 35, 41, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top glass-nav">
+    <div class="container">
+        <a class="navbar-brand d-flex align-items-center" href="/"><i class="bi bi-broadcast-pin me-2 fs-4"></i><span class="fw-bold">[GTG] Live Map</span></a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
+        <div class="collapse navbar-collapse" id="navbarNav"><ul class="navbar-nav ms-auto align-items-center"><li id="user-display" class="nav-item ms-lg-2 mt-2 mt-lg-0"></li></ul></div>
+    </div>
+</nav>
+
+<div class="container-lg mt-4" id="dashboard-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold text-white">Dashboard</h1>
+    </div>
+
+    <div id="dashboard-content">
+        <div class="d-flex justify-content-center mt-5"><div class="spinner-border text-light" style="width: 3rem; height: 3rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>
+    </div>
+</div>
+
+
+<!-- Modal für "Server hinzufügen" -->
+<div class="modal fade" id="addServerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content dashboard-card">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5">Add New Server</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-server-form">
+                    <div class="mb-3">
+                        <label for="serverNameInput" class="form-label">Server Name</label>
+                        <input type="text" class="form-control" id="serverNameInput" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mapConfigSelect" class="form-label">Map</label>
+                        <select class="form-select" id="mapConfigSelect" required>
+                            <option selected disabled value="">Please select a map...</option>
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Server</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal für "Server bearbeiten" -->
+<div class="modal fade" id="editServerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content dashboard-card">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5">Edit Server</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <nav>
+                    <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#nav-general">General</button>
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#nav-logsource">Log Source</button>
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#nav-access">Access Control</button>
+                    </div>
+                </nav>
+                <div class="tab-content pt-3" id="nav-tabContent">
+                    <div class="tab-pane fade show active" id="nav-general">
+                        <form id="edit-server-form-general">
+                            <input type="hidden" id="editServerIdInput">
+                            <div class="mb-3">
+                                <label for="editServerNameInput" class="form-label">Server Name</label>
+                                <input type="text" class="form-control" id="editServerNameInput" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editMapConfigSelect" class="form-label">Map</label>
+                                <select class="form-select" id="editMapConfigSelect" required></select>
+                            </div>
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="editIsPublicSwitch">
+                                <label class="form-check-label" for="editIsPublicSwitch">Map is public (anyone with the link can view)</label>
+                            </div>
+                            <div class="ms-4 mb-3 form-check form-switch" id="is-listed-container">
+                                <input class="form-check-input" type="checkbox" role="switch" id="editIsListedSwitch">
+                                <label class="form-check-label" for="editIsListedSwitch">Show in public server list</label>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="tab-pane fade" id="nav-logsource">
+                        <form id="logsource-form">
+                            <div class="mb-3">
+                                <label for="logSourceTypeSelect" class="form-label">Event Data Source</label>
+                                <select id="logSourceTypeSelect" class="form-select">
+                                    <option value="api" disabled>API (Push) - Not Available for Events</option>
+                                    <option value="ftp">FTP / FTPS</option>
+                                    <option value="sftp">SFTP (SSH)</option>
+                                </select>
+                            </div>
+                            <div id="ftp-settings-container" class="d-none">
+                                <div class="row g-3">
+                                    <div class="col-md-8"><label for="ftpHostInput" class="form-label">Host</label><input type="text" id="ftpHostInput" class="form-control"></div>
+                                    <div class="col-md-4"><label for="ftpPortInput" class="form-label">Port</label><input type="number" id="ftpPortInput" class="form-control"></div>
+                                    <div class="col-md-12"><label for="profileFolderInput" class="form-label">Profile Folder Path</label><input type="text" id="profileFolderInput" class="form-control"><div class="form-text">Path to folder containing 'profile' directory.</div></div>
+                                    <div class="col-md-6"><label for="ftpUserInput" class="form-label">Username</label><input type="text" id="ftpUserInput" class="form-control"></div>
+                                    <div class="col-md-6">
+                                        <label for="ftpPasswordInput" class="form-label">Password / Passphrase</label>
+                                        <div class="input-group">
+                                            <input type="password" id="ftpPasswordInput" class="form-control" placeholder="Leave blank to keep unchanged">
+                                            <button class="btn btn-outline-danger d-none" type="button" id="resetPasswordBtn" title="Remove stored password">Reset</button>
+                                        </div>
+                                        <span id="passwordStatus" class="form-text"></span>
+                                    </div>
+                                    <div id="sftp-key-container" class="col-md-12 d-none">
+                                        <label for="sshKeyInput" class="form-label">Private SSH Key</label>
+                                        <div class="input-group">
+                                            <textarea id="sshKeyInput" class="form-control" rows="4" placeholder="Leave blank to keep unchanged"></textarea>
+                                            <button class="btn btn-outline-danger d-none" type="button" id="resetSshKeyBtn" title="Remove stored SSH key">Reset</button>
+                                        </div>
+                                        <span id="sshKeyStatus" class="form-text"></span>
+                                    </div>
+                                    <div class="col-12"><div class="form-check form-switch" id="ftps-switch-container"><input class="form-check-input" type="checkbox" id="useFtpsSwitch"><label class="form-check-label" for="useFtpsSwitch">Use FTPS</label></div></div>
+                                    <div class="col-12 mt-3"><button type="button" id="test-connection-btn" class="btn btn-info">Test Connection</button><span id="connection-test-result" class="ms-3"></span></div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="tab-pane fade" id="nav-access">
+                        <div class="mb-3 position-relative">
+                            <label for="userSearchInput" class="form-label">Invite User</label>
+                            <input type="text" id="userSearchInput" class="form-control" placeholder="Username (min 3 chars)">
+                            <div id="userSearchResults" class="list-group search-results d-none"></div>
+                        </div>
+                        <h6>Users with Access:</h6>
+                        <div id="access-list-container" class="list-group"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-warning" id="regenerate-key-btn">Regenerate API Key</button>
+                <div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" id="save-all-changes-btn" class="btn btn-primary">Save All Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AUFGERÜSTETES SETUP-WIZARD MODAL -->
+<div class="modal fade" id="setupWizardModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content dashboard-card">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5">Server Setup Guide: <span id="wizard-server-name"></span></h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Follow the steps below to connect your server. This window will update automatically as data is received.</p>
+                <input type="hidden" id="wizard-server-id">
+
+                <div class="row">
+                    <!-- Linke Spalte: API Push -->
+                    <div class="col-lg-6 mb-3 mb-lg-0">
+                        <div class="card dashboard-card h-100">
+                            <div class="card-body">
+                                <h5>1. Position Data (API Push Method)</h5>
+                                <hr>
+                                <p>This method requires the game server to send position data to our API.</p>
+                                <ul>
+                                    <li><strong>Required Mod:</strong> <a href="https://reforger.armaplatform.com/workshop/65E90CB6053F2791" target="_blank">GTG LiveMap & Positions Logger</a></li>
+                                </ul>
+                                <h6>Setup:</h6>
+                                <ol>
+                                    <li>Add the mod to your server.</li>
+                                    <li>In your server's user profile folder, create a new config file here: <br><code>&lt;PROFILEFOLDER&gt;/profile/GTG_LiveMap_config.json</code></li>
+                                    <li>Add the following content to the JSON file:</li>
+                                </ol>
+                                <div id="wizard-api-config-container">
+                                    <pre class="bg-dark p-2 rounded mt-2"><code id="wizard-api-config"></code></pre>
+                                </div>
+                                <div id="wizard-api-key-info" class="alert alert-info d-none">
+                                    Your API key is already configured. If you need a new one, use the "Regenerate API Key" button in the "Manage" screen.
+                                </div>
+                            </div>
+                            <div class="card-footer d-flex justify-content-between align-items-center">
+                                <strong>Status:</strong>
+                                <span id="api-status" class="badge fs-6">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Checking...
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rechte Spalte: FTP/SFTP Pull -->
+                    <div class="col-lg-6">
+                        <div id="wizard-ftp-step" class="card dashboard-card h-100">
+                            <div class="card-body">
+                                <h5>2. Damage & Kill Logs (SFTP/FTP Pull)</h5>
+                                <hr>
+                                <p>This method allows the GTG Live Map backend to connect to your server and fetch log files automatically.</p>
+                                <ul>
+                                    <li><strong>Required Mod:</strong> <a href="https://reforger.armaplatform.com/workshop/6572332E971992EF-ReforgerJSLogging" target="_blank">ReforgerJSLogging</a></li>
+                                </ul>
+                                <h6>Setup:</h6>
+                                <ol>
+                                    <li>Add the mod to your server. It will generate logs in <code>&lt;PROFILEFOLDER&gt;/profile/RJS/events/</code>.</li>
+                                    <li>Create an FTP or SFTP user on your game server machine with <strong>read-only access</strong>.</li>
+                                    <li>Enter your server's connection details below:</li>
+                                </ol>
+
+                                <form id="wizard-logsource-form" class="mt-3">
+                                    <!-- FTP/SFTP Formularfelder werden hier per JS eingefügt -->
+                                </form>
+                            </div>
+                            <div class="card-footer d-flex justify-content-between align-items-center">
+                                <strong>Status:</strong>
+                                <span id="ftp-status" class="badge fs-6">Waiting for API...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/api/v1/cdn/map/bootstrap.bundle.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const API_BASE_URL = '/api/v1';
+        let currentUser, userServers = { owned: [], shared: [], admin: [] }, availableMaps = [], userServersStatus = {};
+        let searchTimeout;
+        let statusPollInterval;
+
+        const addServerModal = new bootstrap.Modal(document.getElementById('addServerModal'));
+        const editServerModal = new bootstrap.Modal(document.getElementById('editServerModal'));
+        const setupWizardModal = new bootstrap.Modal(document.getElementById('setupWizardModal'));
+
+        const dashboardContent = document.getElementById('dashboard-content');
+        const userSearchInput = document.getElementById('userSearchInput');
+        const userSearchResults = document.getElementById('userSearchResults');
+        const editIsPublicSwitch = document.getElementById('editIsPublicSwitch');
+        const editIsListedSwitch = document.getElementById('editIsListedSwitch');
+        const isListedContainer = document.getElementById('is-listed-container');
+
+        const updateUserDisplay = (user) => { const d = document.getElementById('user-display'); if (user && user.id) { d.innerHTML = `<div class="dropdown"><a href="#" class="d-block link-light text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><img src="${user.avatar}" alt="${user.username}" width="32" height="32" class="rounded-circle"><span class="ms-2 d-none d-md-inline">${user.username}</span></a><ul class="dropdown-menu dropdown-menu-dark text-small"><li><a class="dropdown-item active" href="/dashboard.html">Dashboard</a></li><li><a class="dropdown-item" href="/map.html">Live Map</a></li><li><hr class="dropdown-divider"></li><li><a class="dropdown-item" href="/auth/logout">Logout</a></li></ul></div>`; } else { window.location.href = '/auth/discord/login'; } };
+        async function fetchData(ep, opt={}) { try { const res = await fetch(`${API_BASE_URL}/${ep}`, opt); const data = await res.json(); if (!res.ok) { throw new Error(data.error||data.message||`HTTP error! ${res.status}`); } return data; } catch (e) { console.error(`API Error for ${ep}:`, e.message); alert(`An error occurred: ${e.message}`); throw e; } }
+
+        function calculateServerStatus(statusData) {
+            if (!statusData || !statusData.last_position_received_at) {
+                return { color: 'danger', text: 'No data ever received. Click "Setup" to configure.' };
+            }
+            const now = new Date();
+            const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            const lastPos = new Date(statusData.last_position_received_at);
+
+            if (lastPos < twentyFourHoursAgo) {
+                return { color: 'warning', text: `Data last received at ${lastPos.toLocaleString()}. Check server or click "Setup".` };
+            }
+            return { color: 'success', text: `Actively receiving data. Last seen at ${lastPos.toLocaleString()}.` };
+        }
+
+        function renderDashboard() {
+            let html = '';
+
+            const renderGroup = (title, servers, isShared = false) => {
+                if (!servers || servers.length === 0) return '';
+
+                let listHtml = '';
+                servers.forEach((server) => {
+                    const status = calculateServerStatus(userServersStatus[server.id]);
+
+                    let buttonsHtml = `
+                        <button class="btn btn-sm btn-outline-warning setup-guide-btn" data-server-id="${server.id}" title="Setup Guide"><i class="bi bi-gear-fill"></i> Setup</button>
+                        <button class="btn btn-sm btn-info share-btn" data-link="/map.html?server_id=${server.id}" title="Copy map link"><i class="bi bi-share-fill"></i></button>
+                        <button class="btn btn-sm btn-secondary manage-btn" data-server-id="${server.id}">Manage</button>
+                        <button class="btn btn-sm btn-danger delete-btn" data-server-id="${server.id}" data-server-name="${server.name}">Delete</button>
+                    `;
+
+                    if (isShared) {
+                        buttonsHtml = `<a href="/map.html?server_id=${server.id}" class="btn btn-sm btn-info"><i class="bi bi-map-fill"></i> View Map</a>`;
+                    }
+
+                    listHtml += `
+                        <div class="list-group-item bg-transparent text-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <div class="d-flex align-items-center">
+                                <i id="status-dot-${server.id}" class="bi bi-circle-fill fs-5 me-3 text-secondary" title="Loading status..."></i>
+                                <div>
+                                    <strong>${server.name}</strong><br>
+                                    <small class="text-muted">Map: ${server.map_config.Name}</small>
+                                </div>
+                            </div>
+                            <div class="btn-group" role="group">${buttonsHtml}</div>
+                        </div>`;
+                });
+
+                return `
+                    <div class="card dashboard-card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">${title}</div>
+                        <div class="list-group list-group-flush">${listHtml}</div>
+                    </div>`;
+            };
+
+            html += renderGroup('My Servers', userServers.owned);
+            html += renderGroup('Shared With Me', userServers.shared, true);
+            html += renderGroup('Admin View (All Other Servers)', userServers.admin);
+
+            if (html === '') {
+                html = `<div class="card dashboard-card"><div class="card-body text-center p-4">You have not added or been assigned to any servers yet.</div></div>`;
+            }
+
+            const addButton = `<div class="d-flex justify-content-end mb-3"><button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addServerModal">+ Add New Server</button></div>`;
+            dashboardContent.innerHTML = addButton + html;
+            attachActionListeners();
+        }
+
+        function getServerById(serverId) {
+            let server = userServers.owned.find(s => s.id === serverId);
+            if (server) return server;
+            server = userServers.shared.find(s => s.id === serverId);
+            if (server) return server;
+            server = userServers.admin.find(s => s.id === serverId);
+            return server;
+        }
+
+        async function fetchAndUpdateStatuses() {
+            try {
+                const statuses = await fetchData('dashboard/servers/statuses');
+                userServersStatus = statuses;
+                const allServers = [...userServers.owned, ...userServers.shared, ...userServers.admin];
+                allServers.forEach(server => {
+                    const statusData = statuses[server.id];
+                    const status = calculateServerStatus(statusData);
+                    const dot = document.getElementById(`status-dot-${server.id}`);
+                    if (dot) {
+                        dot.className = `bi bi-circle-fill fs-5 me-3 text-${status.color}`;
+                        dot.title = status.text;
+                    }
+                });
+            } catch (e) {
+                console.error("Could not fetch server statuses:", e);
+            }
+        }
+
+        function renderAccessList(list) { const c = document.getElementById('access-list-container'); c.innerHTML = ''; if (list.length === 0) { c.innerHTML = '<div class="list-group-item bg-transparent">No users have been granted access.</div>'; return; } list.forEach(u => { const i = document.createElement('div'); i.className = 'list-group-item bg-transparent d-flex justify-content-between align-items-center'; i.innerHTML = `<div><img src="${u.avatar}" class="rounded-circle avatar-sm me-2"><span>${u.username}</span></div><button class="btn btn-sm btn-outline-danger revoke-access-btn" data-user-id="${u.id}">Revoke</button>`; c.appendChild(i); }); document.querySelectorAll('.revoke-access-btn').forEach(b => b.addEventListener('click', handleRevokeAccess)); }
+        function renderSearchResults(users) { const userSearchResults = document.getElementById('userSearchResults'); userSearchResults.innerHTML=''; userSearchResults.classList.remove('d-none'); if (users.length === 0) { userSearchResults.innerHTML='<div class="list-group-item">No users found.</div>'; return; } users.forEach(user => { const i = document.createElement('a'); i.href = '#'; i.className = 'list-group-item list-group-item-action search-result-item'; i.dataset.userId = user.id; i.innerHTML = `<img src="${user.avatar}" class="rounded-circle avatar-sm me-2"><span>${user.username}</span>`; i.addEventListener('click', handleGrantAccess); userSearchResults.appendChild(i); }); }
+
+        function attachActionListeners() {
+            document.querySelectorAll('.delete-btn').forEach(b => b.addEventListener('click', handleDeleteServer));
+            document.querySelectorAll('.manage-btn, .setup-guide-btn').forEach(b => {
+                b.addEventListener('click', (e) => {
+                    const server = getServerById(e.currentTarget.dataset.serverId);
+                    if (!server) return;
+                    if (b.classList.contains('manage-btn')) {
+                        handleManageServer(server);
+                    } else {
+                        launchSetupWizard(server);
+                    }
+                });
+            });
+            document.querySelectorAll('.share-btn').forEach(b => b.addEventListener('click', (e) => {
+                const link = window.location.origin + e.currentTarget.dataset.link;
+                navigator.clipboard.writeText(link).then(() => {
+                    alert('Map link copied to clipboard!');
+                }).catch(err => {
+                    console.error('Failed to copy link: ', err);
+                });
+            }));
+            if (document.getElementById('resetPasswordBtn')) {
+                document.getElementById('resetPasswordBtn').addEventListener('click', () => handleResetSecret('password'));
+                document.getElementById('resetSshKeyBtn').addEventListener('click', () => handleResetSecret('ssh_key'));
+            }
+        }
+
+        async function handleDeleteServer(e) {
+            const serverId = e.currentTarget.dataset.serverId;
+            const serverName = e.currentTarget.dataset.serverName;
+            if (confirm(`Are you sure you want to permanently delete "${serverName}" and all its data?`)) {
+                try {
+                    await fetchData(`servers/${serverId}`, { method: 'DELETE' });
+                    alert("Server deleted successfully.");
+                    initializeDashboard();
+                } catch (error) {}
+            }
+        }
+
+        async function handleManageServer(server) {
+            if (!server) return;
+            document.getElementById('editServerIdInput').value = server.id;
+            document.getElementById('editServerNameInput').value = server.name;
+            document.getElementById('editMapConfigSelect').value = server.map_config.ID;
+            editIsPublicSwitch.checked = server.is_public;
+            editIsListedSwitch.checked = server.is_listed;
+            document.getElementById('regenerate-key-btn').dataset.serverId = server.id;
+            document.getElementById('logSourceTypeSelect').value = server.LogSourceType || 'ftp';
+            document.getElementById('ftpHostInput').value = server.FtpHost || '';
+            document.getElementById('ftpPortInput').value = server.FtpPort || 21;
+            document.getElementById('profileFolderInput').value = server.ProfileFolderPath || '';
+            document.getElementById('ftpUserInput').value = server.FtpUser || '';
+            document.getElementById('useFtpsSwitch').checked = server.UseFtps || false;
+            document.getElementById('ftpPasswordInput').value = '';
+            document.getElementById('sshKeyInput').value = '';
+            document.getElementById('passwordStatus').textContent = server.has_password_set ? "Password is set." : "Password is not set.";
+            document.getElementById('resetPasswordBtn').classList.toggle('d-none', !server.has_password_set);
+            document.getElementById('sshKeyStatus').textContent = server.has_ssh_key_set ? "SSH key is set." : "SSH key is not set.";
+            document.getElementById('resetSshKeyBtn').classList.toggle('d-none', !server.has_ssh_key_set);
+            toggleLogSourceFields();
+            toggleListedOption();
+            document.getElementById('access-list-container').innerHTML = '<div class="list-group-item bg-transparent">Loading...</div>';
+            const list = await fetchData(`servers/${server.id}/access`);
+            renderAccessList(list);
+            editServerModal.show();
+        }
+
+        async function handleResetSecret(fieldType) {
+            if (!confirm(`Are you sure you want to remove the stored ${fieldType.replace('_', ' ')}? This cannot be undone.`)) return;
+            const id = document.getElementById('editServerIdInput').value;
+            const server = getServerById(id);
+            const data = {
+                name: server.name,
+                is_public: server.is_public,
+                is_listed: server.is_listed,
+                map_config_id: server.map_config.ID
+            };
+            data[fieldType] = "_RESET_";
+            try {
+                await fetchData(`servers/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                alert(`${fieldType.replace('_', ' ')} has been removed.`);
+                document.getElementById('ftpPasswordInput').value = "";
+                document.getElementById('sshKeyInput').value = "";
+                await initializeDashboard();
+                editServerModal.hide();
+            } catch (e) {
+                alert(`Failed to reset ${fieldType.replace('_', ' ')}: ${e.message}`);
+            }
+        }
+
+        function toggleLogSourceFields(prefix = '') { const type = document.getElementById(`${prefix}logSourceTypeSelect`).value; document.getElementById(`${prefix}ftp-settings-container`).classList.remove('d-none'); document.getElementById(`${prefix}sftp-key-container`).classList.toggle('d-none', type !== 'sftp'); document.getElementById(`${prefix}ftps-switch-container`).classList.toggle('d-none', type !== 'ftp'); }
+        function toggleListedOption() { if (editIsPublicSwitch.checked) { isListedContainer.style.opacity = '1'; isListedContainer.style.pointerEvents = 'auto'; editIsListedSwitch.disabled = false; } else { isListedContainer.style.opacity = '0.5'; isListedContainer.style.pointerEvents = 'none'; editIsListedSwitch.disabled = true; editIsListedSwitch.checked = false; } }
+        async function handleTestConnection(prefix = '') { const id = prefix === 'wizard-' ? document.getElementById('wizard-server-id').value : document.getElementById('editServerIdInput').value; const r = document.getElementById(`${prefix}connection-test-result`); r.textContent='Testing...'; r.className='ms-3 text-info'; const data={log_source_type:document.getElementById(`${prefix}logSourceTypeSelect`).value,ftp_host:document.getElementById(`${prefix}ftpHostInput`).value,ftp_port:parseInt(document.getElementById(`${prefix}ftpPortInput`).value)||21,ftp_user:document.getElementById(`${prefix}ftpUserInput`).value,password:document.getElementById(`${prefix}ftpPasswordInput`).value,ssh_key:document.getElementById(`${prefix}sshKeyInput`).value,use_ftps:document.getElementById(`${prefix}useFtpsSwitch`).checked}; try{const res=await fetchData(`servers/${id}/test-connection`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); r.textContent=res.message;r.className='ms-3 text-success'}catch(e){r.textContent=`Error: ${e.message}`;r.className='ms-3 text-danger'} }
+        async function handleSaveChanges() { const id=document.getElementById('editServerIdInput').value; let data={name:document.getElementById('editServerNameInput').value,map_config_id:document.getElementById('editMapConfigSelect').value,is_public:editIsPublicSwitch.checked,is_listed:editIsListedSwitch.checked,log_source_type:document.getElementById('logSourceTypeSelect').value}; if(data.log_source_type !== 'api'){Object.assign(data, { ftp_host: document.getElementById('ftpHostInput').value, ftp_port: parseInt(document.getElementById('ftpPortInput').value)||21, ftp_user: document.getElementById('ftpUserInput').value, password: document.getElementById('ftpPasswordInput').value, ssh_key: document.getElementById('sshKeyInput').value, use_ftps: document.getElementById('useFtpsSwitch').checked, profile_folder_path: document.getElementById('profileFolderInput').value });} if (data.password === '') delete data.password; if (data.ssh_key === '') delete data.ssh_key; try { await fetchData(`servers/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); editServerModal.hide(); alert("Server updated successfully."); initializeDashboard(); } catch (e) {} }
+        function handleUserSearch(e) { clearTimeout(searchTimeout); const q = e.target.value; userSearchResults.classList.add('d-none'); if (q.length < 3) return; searchTimeout = setTimeout(async () => { try { const u = await fetchData(`users/search?username=${encodeURIComponent(q)}`); renderSearchResults(u); } catch(e){} }, 300); }
+        async function handleGrantAccess(e) { e.preventDefault(); const uId=e.currentTarget.dataset.userId, sId=document.getElementById('editServerIdInput').value; try { await fetchData(`servers/${sId}/access`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:uId})}); userSearchInput.value='';userSearchResults.classList.add('d-none'); const list=await fetchData(`servers/${sId}/access`); renderAccessList(list); } catch(e){} }
+        async function handleRevokeAccess(e) { const uId=e.target.dataset.userId, sId=document.getElementById('editServerIdInput').value; if(confirm(`Really revoke access?`)){try{await fetchData(`servers/${sId}/access/${uId}`,{method:'DELETE'});const list=await fetchData(`servers/${sId}/access`);renderAccessList(list)}catch(e){}} }
+
+        function launchSetupWizard(server, newApiKey = null) {
+            document.getElementById('wizard-server-id').value = server.id;
+            document.getElementById('wizard-server-name').textContent = server.name;
+
+            const apiKeyInfo = document.getElementById('wizard-api-key-info');
+            const apiConfigContainer = document.getElementById('wizard-api-config-container');
+
+            if (newApiKey) {
+                apiKeyInfo.classList.add('d-none');
+                apiConfigContainer.classList.remove('d-none');
+                const configContent = `{ "contextURL": "${window.location.origin}/api/v1/positions", "APIToken": "${newApiKey}", "intervalLog": 1, "intervalAPI": 1 }`;
+                document.getElementById('wizard-api-config').textContent = configContent;
+            } else {
+                apiKeyInfo.classList.remove('d-none');
+                apiConfigContainer.classList.add('d-none');
+            }
+
+            const wizardLogSourceForm = document.getElementById('wizard-logsource-form');
+            wizardLogSourceForm.innerHTML = `
+                <div class="mb-3"><label for="wizard-logSourceTypeSelect" class="form-label small">Event Data Source</label><select id="wizard-logSourceTypeSelect" class="form-select form-select-sm"><option value="ftp">FTP / FTPS</option><option value="sftp">SFTP (SSH)</option></select></div>
+                <div id="wizard-ftp-settings-container">
+                    <div class="row g-2">
+                        <div class="col-md-8"><label for="wizard-ftpHostInput" class="form-label small">Host</label><input type="text" id="wizard-ftpHostInput" class="form-control form-control-sm"></div>
+                        <div class="col-md-4"><label for="wizard-ftpPortInput" class="form-label small">Port</label><input type="number" id="wizard-ftpPortInput" class="form-control form-control-sm"></div>
+                        <div class="col-12"><label for="wizard-profileFolderInput" class="form-label small">Profile Folder Path</label><input type="text" id="wizard-profileFolderInput" class="form-control form-control-sm"></div>
+                        <div class="col-md-6"><label for="wizard-ftpUserInput" class="form-label small">Username</label><input type="text" id="wizard-ftpUserInput" class="form-control form-control-sm"></div>
+                        <div class="col-md-6"><label for="wizard-ftpPasswordInput" class="form-label small">Password</label><input type="password" id="wizard-ftpPasswordInput" class="form-control form-control-sm"></div>
+                        <div id="wizard-sftp-key-container" class="col-12 d-none"><label for="wizard-sshKeyInput" class="form-label small">Private SSH Key</label><textarea id="wizard-sshKeyInput" class="form-control form-control-sm" rows="3"></textarea></div>
+                        <div class="col-12"><div class="form-check form-switch" id="wizard-ftps-switch-container"><input class="form-check-input" type="checkbox" id="wizard-useFtpsSwitch"><label class="form-check-label small" for="wizard-useFtpsSwitch">Use FTPS (Implicit)</label></div></div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="button" id="wizard-save-and-test-btn" class="btn btn-info btn-sm">Save & Test Connection</button>
+                    <span id="wizard-connection-test-result" class="ms-2 small"></span>
+                </div>
+            `;
+
+            document.getElementById('wizard-logSourceTypeSelect').value = server.LogSourceType || 'ftp';
+            document.getElementById('wizard-ftpHostInput').value = server.FtpHost || '';
+            document.getElementById('wizard-ftpPortInput').value = server.FtpPort || 21;
+            document.getElementById('wizard-profileFolderInput').value = server.ProfileFolderPath || '';
+            document.getElementById('wizard-ftpUserInput').value = server.FtpUser || '';
+            document.getElementById('wizard-useFtpsSwitch').checked = server.UseFtps || false;
+
+            toggleLogSourceFields('wizard-');
+
+            document.getElementById('api-status').innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Checking...`;
+            document.getElementById('ftp-status').textContent = 'Waiting for API configuration...';
+
+            if (statusPollInterval) clearInterval(statusPollInterval);
+            pollServerStatus(server.id, true);
+            statusPollInterval = setInterval(() => pollServerStatus(server.id), 5000);
+
+            setupWizardModal.show();
+
+            document.getElementById('wizard-save-and-test-btn').addEventListener('click', handleWizardSaveAndTest);
+            document.getElementById('wizard-logSourceTypeSelect').addEventListener('change', () => toggleLogSourceFields('wizard-'));
+        }
+
+        async function pollServerStatus(serverId, isInitial = false) {
+            try {
+                const statuses = await fetchData('dashboard/servers/statuses');
+                const status = statuses[serverId];
+
+                const apiStatusEl = document.getElementById('api-status');
+                const ftpStepEl = document.getElementById('wizard-ftp-step');
+
+                if (status && status.last_position_received_at) {
+                    apiStatusEl.innerHTML = `✅ Data received!`;
+                    apiStatusEl.className = 'badge fs-6 text-bg-success';
+                    ftpStepEl.classList.remove('d-none');
+                } else {
+                    apiStatusEl.innerHTML = `❌ Waiting for first data packet...`;
+                    apiStatusEl.className = 'badge fs-6 text-bg-warning';
+                    if (isInitial) ftpStepEl.classList.add('d-none');
+                }
+
+                const ftpStatusEl = document.getElementById('ftp-status');
+                if (status && status.last_event_received_at) {
+                    ftpStatusEl.innerHTML = `✅ Event data received!`;
+                    ftpStatusEl.className = 'badge fs-6 text-bg-success';
+                } else {
+                    ftpStatusEl.innerHTML = `Waiting for configuration...`;
+                    ftpStatusEl.className = 'badge fs-6 text-bg-secondary';
+                }
+            } catch (error) {
+                console.error("Failed to poll server status:", error);
+                clearInterval(statusPollInterval);
+                document.getElementById('api-status').textContent = 'Error fetching status.';
+                document.getElementById('api-status').className = 'badge fs-6 text-bg-danger';
+            }
+        }
+
+        async function handleWizardSaveAndTest() {
+            const id = document.getElementById('wizard-server-id').value;
+            const resultEl = document.getElementById('wizard-connection-test-result');
+
+            const server = getServerById(id);
+            if (!server) {
+                alert("Error: Could not find server data. Please refresh.");
+                return;
+            }
+
+            const saveData = {
+                name: server.name,
+                is_public: server.is_public,
+                is_listed: server.is_listed,
+                map_config_id: server.map_config.ID,
+                log_source_type: document.getElementById('wizard-logSourceTypeSelect').value,
+                ftp_host: document.getElementById('wizard-ftpHostInput').value,
+                ftp_port: parseInt(document.getElementById('wizard-ftpPortInput').value) || 21,
+                ftp_user: document.getElementById('wizard-ftpUserInput').value,
+                password: document.getElementById('wizard-ftpPasswordInput').value,
+                ssh_key: document.getElementById('wizard-sshKeyInput').value,
+                use_ftps: document.getElementById('wizard-useFtpsSwitch').checked,
+                profile_folder_path: document.getElementById('wizard-profileFolderInput').value
+            };
+
+            try {
+                resultEl.textContent = 'Saving & Testing...';
+                resultEl.className = 'ms-2 text-info';
+
+                const updatePayload = { ...saveData };
+                if (updatePayload.password === '') delete updatePayload.password;
+                if (updatePayload.ssh_key === '') delete updatePayload.ssh_key;
+
+                await fetchData(`servers/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatePayload) });
+
+                const testPayload = { ...saveData };
+                const res = await fetchData(`servers/${id}/test-connection`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(testPayload) });
+                resultEl.textContent = res.message;
+                resultEl.className = 'ms-2 text-success';
+
+                await initializeDashboard();
+            } catch (e) {
+                resultEl.textContent = `Error: ${e.message}`;
+                resultEl.className = 'ms-2 text-danger';
+            }
+        }
+
+        async function initializeDashboard() {
+            try {
+                const user = await fetchData('users/me');
+                updateUserDisplay(user);
+
+                const [servers, maps] = await Promise.all([
+                    fetchData('dashboard/servers'),
+                    fetchData('public/map-configs')
+                ]);
+
+                userServers = servers;
+                availableMaps = maps;
+
+                const addSelect = document.getElementById('mapConfigSelect'), editSelect = document.getElementById('editMapConfigSelect');
+                if (addSelect && addSelect.options.length === 1) {
+                    maps.forEach(m => {
+                        const o = document.createElement('option'); o.value = m.ID; o.textContent = m.Name;
+                        addSelect.appendChild(o.cloneNode(true));
+                        if(editSelect) editSelect.appendChild(o);
+                    });
+                }
+
+                renderDashboard();
+                fetchAndUpdateStatuses();
+
+            } catch (e) {
+                dashboardContent.innerHTML = `<h3 class="text-center text-danger">Failed to load dashboard.</h3>`;
+            }
+        }
+
+        document.getElementById('add-server-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const n = document.getElementById('serverNameInput').value;
+            const mId = document.getElementById('mapConfigSelect').value;
+            try {
+                const d = await fetchData('servers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: n, map_config_id: mId }) });
+                addServerModal.hide(); e.target.reset();
+                await initializeDashboard();
+                const newServer = getServerById(d.server_id);
+                launchSetupWizard(newServer, d.api_key);
+            } catch (e) {}
+        });
+
+        document.getElementById('regenerate-key-btn').addEventListener('click', async e => {
+            const id = e.target.dataset.serverId;
+            if(confirm("Are you sure? The old key will become invalid immediately.")){
+                try {
+                    const d = await fetchData(`servers/${id}/new-key`,{method:'PATCH'});
+                    editServerModal.hide();
+                    const server = getServerById(id);
+                    launchSetupWizard(server, d.api_key);
+                } catch(e) {}
+            }
+        });
+
+        document.getElementById('setupWizardModal').addEventListener('hidden.bs.modal', () => { if (statusPollInterval) { clearInterval(statusPollInterval); console.log("Wizard closed, polling stopped."); } });
+        document.getElementById('save-all-changes-btn').addEventListener('click', handleSaveChanges);
+        document.getElementById('test-connection-btn').addEventListener('click', () => handleTestConnection(''));
+        editIsPublicSwitch.addEventListener('change', toggleListedOption);
+        userSearchInput.addEventListener('input', handleUserSearch);
+        document.body.addEventListener('click', (e) => { if (!e.target.closest('#userSearchInput')) userSearchResults.classList.add('d-none'); });
+
+        initializeDashboard();
+    });
+</script>
+</body>
+</html>

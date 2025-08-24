@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[GTG] Live Map - Tactical Overview</title>
+    <link href="/api/v1/cdn/map/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/api/v1/cdn/map/icons/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/api/v1/cdn/map/leaflet.css"/>
+    <link rel="stylesheet"
+          href="/api/v1/cdn/map/Control.FullScreen.min.css"/>
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            background-image: url('https://gtg-arma.de/img/background.webp');
+            background-size: cover;
+            background-position: center center;
+            background-attachment: fixed;
+        }
+
+        .glass-nav {
+            background: rgba(13, 17, 23, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .main-layout {
+            height: 78vh;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: .375rem;
+        }
+
+        .leaflet-container {
+            background-color: var(--bs-dark-bg-subtle, #212529);
+        }
+
+        .player-icon-container, .damage-icon-container, .vehicle-icon-container {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .player-icon-container svg path {
+            stroke: #000;
+            stroke-width: 1.5;
+        }
+
+        .vehicle-icon-container {
+            position: absolute;
+            top: -16px;
+            left: 14px;
+            color: #e9ecef;
+            font-size: 14px;
+            filter: drop-shadow(0 0 1px black);
+        }
+
+        .player-label {
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            box-shadow: none;
+            white-space: nowrap;
+        }
+
+        .list-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid #adb5bd;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        .dropdown-menu {
+            background-color: rgba(30, 35, 41, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .list-group-item {
+            background-color: rgba(33, 37, 41, 0.6) !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        .card, .form-control, .form-select {
+            background-color: rgba(13, 17, 23, 0.6) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #player-list-container, #event-log-container {
+            display: flex;
+            flex-direction: column;
+            background: rgba(13, 17, 23, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: .375rem;
+            padding: 1rem;
+        }
+
+        #player-list, #event-log {
+            flex-grow: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .event-log-item {
+            font-size: 0.8rem;
+        }
+
+        .event-log-item .fw-bold {
+            color: #ffc107;
+        }
+
+        .event-log-item .text-danger {
+            color: #e74c3c !important;
+        }
+
+        .event-log-item .text-info {
+            color: #3498db !important;
+        }
+
+        optgroup {
+            font-style: italic;
+            font-weight: bold;
+            color: #8cb6de;
+            background-color: var(--bs-dark);
+        }
+
+        .slider-container {
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        #damage-ticks-container, #player-damage-ticks-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 10px;
+            pointer-events: none;
+            margin: 0 10px;
+        }
+
+        .damage-tick {
+            position: absolute;
+            bottom: 0;
+            width: 2px;
+            height: 100%;
+            background-color: #e74c3c;
+            opacity: 0.7;
+        }
+
+        .player-damage-tick {
+            position: absolute;
+            bottom: -4px;
+            width: 3px;
+            height: 140%;
+            background-color: #f1c40f;
+            z-index: 10;
+            border: 1px solid black;
+        }
+
+        #cookie-banner {
+            position: fixed;
+            bottom: -200px;
+            left: 0;
+            right: 0;
+            padding: 1.5rem;
+            z-index: 1055;
+            transition: transform 0.5s ease-in-out;
+        }
+
+        #cookie-banner.show {
+            transform: translateY(-200px);
+        }
+
+        #cookie-banner .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .live-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #6c757d;
+            display: inline-block;
+            margin-right: 5px;
+            transition: background-color: 0.3s;
+        }
+
+        .live-indicator.active {
+            background-color: #dc3545;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+            }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top glass-nav">
+    <div class="container">
+        <a class="navbar-brand d-flex align-items-center" href="/"><i class="bi bi-broadcast-pin me-2 fs-4"></i><span
+                class="fw-bold">[GTG] Live Map</span></a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span
+                class="navbar-toggler-icon"></span></button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto align-items-center">
+                <li id="user-display" class="nav-item ms-lg-2 mt-2 mt-lg-0"></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid mt-4">
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-5 col-lg-3"><label for="server-select"
+                                                      class="form-label fw-bold">Server:</label><select
+                        id="server-select" class="form-select"></select></div>
+                <div class="col-md-4 col-lg-2">
+                    <button id="live-mode-btn" class="btn btn-outline-secondary w-100"><span
+                            class="live-indicator"></span>Live
+                    </button>
+                </div>
+                <div class="col-md-3 col-lg-7"><label class="form-label fw-bold">Time Range:</label>
+                    <div class="input-group"><input type="datetime-local" id="time-range-start" class="form-control"
+                                                    title="From"><input type="datetime-local" id="time-range-end"
+                                                                        class="form-control" title="To">
+                        <button id="apply-time-range-btn" class="btn btn-primary" title="Apply"><i
+                                class="bi bi-check-lg"></i></button>
+                        <button id="reset-time-range-btn" class="btn btn-secondary" title="Reset"><i
+                                class="bi bi-arrow-clockwise"></i></button>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label for="time-slider" class="form-label fw-bold mb-0">Timeline: <span id="time-label"
+                                                                                             class="fw-normal"></span>
+                        <small id="downsample-warning" class="text-warning d-none"><i
+                                class="bi bi-exclamation-triangle-fill"></i> Data has been downsampled to improve
+                            performance.</small></label>
+                    <div class="d-flex align-items-center">
+                        <button id="play-pause-btn" class="btn btn-sm btn-outline-light me-2" disabled><i
+                                class="bi bi-play-fill"></i></button>
+                        <div class="slider-container w-100"><input type="range" class="form-range" id="time-slider"
+                                                                   min="0" max="100" value="0" disabled>
+                            <div id="damage-ticks-container"></div>
+                            <div id="player-damage-ticks-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="row main-layout g-4">
+        <div class="col-lg-9 h-100">
+            <div id="map"></div>
+        </div>
+        <div class="col-lg-3 h-100">
+            <div id="player-list-container" class="h-50 mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3"><h4 class="mb-0">Units</h4>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-light" title="Go To Coordinates" data-bs-toggle="modal"
+                                data-bs-target="#gotoModal"><i class="bi bi-crosshair"></i></button>
+                        <button class="btn btn-sm btn-outline-light" title="Heatmap" data-bs-toggle="dropdown"
+                                aria-expanded="false"><i class="bi bi-fire"></i></button>
+                        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+                            <li>
+                                <button class="dropdown-item" id="heatmap-from-range-btn">Heatmap for Timeline</button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item" id="heatmap-last-hour-btn">Heatmap for Last Hour</button>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <button class="dropdown-item" id="remove-heatmap-btn">Remove Heatmap</button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <input type="text" id="player-search-input" class="form-control form-control-sm mb-3"
+                       placeholder="Search...">
+                <div class="list-group" id="player-list">
+                    <div class="list-group-item bg-transparent">Please select a server...</div>
+                </div>
+            </div>
+            <div id="event-log-container" class="h-50">
+                <h4 class="mb-3">Event Log</h4>
+                <div class="list-group" id="event-log">
+                    <div class="list-group-item bg-transparent">No events in this time range.</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center mt-4 text-white-50"><small>© 2025 [GTG] Live Map</small></footer>
+</div>
+
+<div class="modal fade" id="gotoModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card">
+            <div class="modal-header"><h5 class="modal-title">Go To Coordinates</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body"><label for="goto-coords-input" class="form-label">Enter Arma Coordinates (X,
+                Z)</label>
+                <div class="input-group"><input type="text" id="goto-coords-input" class="form-control"
+                                                placeholder="e.g. 6400, 6400">
+                    <button class="btn btn-primary" id="goto-coords-btn">Go</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="cookie-banner" class="glass-pane">
+    <div class="container">
+        <div class="text-white-50"><p class="mb-0">This website uses technically necessary cookies to ensure login
+            functionality. By using the site, you agree to this.</p></div>
+        <div>
+            <button class="btn btn-primary" id="accept-cookies">Accept</button>
+        </div>
+    </div>
+</div>
+
+<script src="/api/v1/cdn/map/bootstrap.bundle.min.js"></script>
+<script src="/api/v1/cdn/map/leaflet.js"></script>
+<script src="/api/v1/cdn/map/leaflet.rotatedMarker.js"></script>
+<script src="/api/v1/cdn/map/Control.FullScreen.min.js"></script>
+<script src="/api/v1/cdn/map/leaflet.polylineDecorator.js"></script>
+<script src="/api/v1/cdn/map/leaflet-heat.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Globale Variablen & UI-Elemente ---
+        const API_BASE_URL = '/api/v1';
+        let map;
+        let playerMarkersLayer = L.layerGroup(), damageEventsLayer = L.layerGroup(), heatLayer = null,
+            gotoMarker = null;
+        let allServersData = {};
+        let keyframeTimestamps = [];
+        let damageEventsForRange = [];
+        let playerMarkerMap = new Map();
+        const nameCache = new Map();
+        let isLiveModeActive = false, isPlaying = false, isBuffering = false;
+        let liveModeTimeout, playbackInterval;
+        let frameCache = new Map();
+        let currentMapConfig = null;
+
+        // UI Elemente
+        const serverSelect = document.getElementById('server-select');
+        const timeSlider = document.getElementById('time-slider');
+        const timeLabel = document.getElementById('time-label');
+        const playerList = document.getElementById('player-list');
+        const userDisplay = document.getElementById('user-display');
+        const eventLog = document.getElementById('event-log');
+        const gotoCoordsInput = document.getElementById('goto-coords-input');
+        const gotoCoordsBtn = document.getElementById('goto-coords-btn');
+        const gotoModal = new bootstrap.Modal(document.getElementById('gotoModal'));
+        const liveModeBtn = document.getElementById('live-mode-btn');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+
+        // --- Hilfsfunktionen & Leaflet Konfiguration ---
+
+        const fetchData = async (endpoint, options = {}) => {
+            try {
+                const r = await fetch(`${API_BASE_URL}/${endpoint}`, options);
+                if (!r.ok) {
+                    let d;
+                    try {
+                        d = await r.json();
+                    } catch (e) {
+                        throw new Error(`API Error ${r.status}`)
+                    }
+                    throw new Error(d.error || `API Error ${r.status}`);
+                }
+                if (r.status === 204) return null;
+                return await r.json();
+            } catch (e) {
+                console.error(`Fetch Error for ${endpoint}:`, e.message);
+                throw e;
+            }
+        };
+
+        const LCRSCustomSimple = L.Util.extend({}, L.CRS, {
+            projection: L.Projection.LonLat,
+            transformation: new L.Transformation(1 / 12.501, 0, -1 / 12.501, 0),
+            scale(z) {
+                return Math.pow(2, z);
+            },
+            zoom(s) {
+                return Math.log(s) / Math.LN2;
+            },
+            distance(a, b) {
+                const dx = b.lng - a.lng;
+                const dy = b.lat - a.lat;
+                return Math.sqrt(dx * dx + dy * dy);
+            },
+            infinite: true
+        });
+
+        const LTileLayerInvertedY = L.TileLayer.extend({
+            getTileUrl: function (coords) {
+                coords.y = -coords.y - 1;
+                return L.TileLayer.prototype.getTileUrl.call(this, coords);
+            }
+        });
+
+        /**
+         * ★★★ NEUE ZENTRALE UMRECHNUNGSFUNKTION ★★★
+         * Wendet die vollständige Kalibrierung (Skalierung & Offset) auf rohe
+         * Arma-Koordinaten an, um die korrekte Anzeigeposition auf der Leaflet-Karte zu erhalten.
+         * Diese Funktion repliziert die Logik aus der admin.html.
+         * @param {number[]} armaCoords - Ein Array mit [ArmaX, ArmaZ].
+         * @returns {L.LatLng} Das umgerechnete und kalibrierte L.latLng Objekt für die Anzeige.
+         */
+        const armaToLeaflet = (armaCoords) => {
+            const armaLatLng = L.latLng(armaCoords[1], armaCoords[0]); // {lat: Z, lng: X}
+
+            // Wenn keine Kalibrierungsdaten vorhanden sind, nur die Basistransformation des CRS anwenden
+            if (!currentMapConfig || currentMapConfig.ScaleX === undefined) {
+                return armaLatLng;
+            }
+
+            const scaleX = currentMapConfig.ScaleX ?? 1.0;
+            const scaleY = currentMapConfig.ScaleY ?? 1.0;
+            const offsetX = currentMapConfig.OffsetX ?? 0;
+            const offsetY = currentMapConfig.OffsetY ?? 0;
+
+            // Führt die gleiche komplexe Transformation wie im Admin-Panel durch:
+            // 1. In Leaflet-interne Koordinaten projizieren
+            let projected = LCRSCustomSimple.projection.project(armaLatLng);
+            // 2. Die Basis-Transformation des CRS anwenden
+            let transformed = LCRSCustomSimple.transformation.transform(projected);
+            // 3. Die individuelle Karten-Kalibrierung (Skalierung & Offset) anwenden
+            transformed.x = (transformed.x * scaleX) + offsetX;
+            transformed.y = (transformed.y * scaleY) + offsetY;
+            // 4. Die Basis-Transformation umkehren
+            projected = LCRSCustomSimple.transformation.untransform(transformed);
+            // 5. Zurück in ein anzeigbares LatLng-Objekt projizieren
+            return LCRSCustomSimple.projection.unproject(projected);
+        };
+
+
+        // --- Kernfunktionen ---
+
+        function initMapFromConfig(mapConfig) {
+            if (map) map.remove();
+            if (!mapConfig) {
+                console.error("initMapFromConfig called without a valid mapConfig!");
+                return;
+            }
+            // WICHTIG: Die aktuelle Konfiguration muss sofort gesetzt werden,
+            // damit `armaToLeaflet` darauf zugreifen kann.
+            currentMapConfig = mapConfig;
+
+            // Die Karte wird mit dem benutzerdefinierten CRS initialisiert
+            map = L.map('map', {
+                crs: LCRSCustomSimple,
+                minZoom: mapConfig.MinZoom,
+                maxZoom: mapConfig.MaxZoom,
+                fullscreenControl: true
+            });
+
+            // Die Kartengrenzen (Bounds) müssen jetzt ebenfalls durch die Kalibrierungsfunktion
+            // umgerechnet werden, um korrekt zu funktionieren.
+            const bounds = L.latLngBounds(
+                armaToLeaflet([mapConfig.BoundsSWX, mapConfig.BoundsSWY]),
+                armaToLeaflet([mapConfig.BoundsNEX, mapConfig.BoundsNEY])
+            );
+
+            if (mapConfig.TilesURL) {
+                new LTileLayerInvertedY(mapConfig.TilesURL, {
+                    bounds: bounds, // Kalibrierte Bounds für die Kachelebene verwenden
+                    noWrap: true,
+                    maxZoom: mapConfig.MaxZoom,
+                    minZoom: mapConfig.MinZoom,
+                    zoomReverse: true,
+                }).addTo(map);
+            }
+
+            if (mapConfig.InitialViewLat != null && mapConfig.InitialViewLng != null && mapConfig.InitialViewZoom != null) {
+                // Die initiale Ansicht muss ebenfalls kalibriert werden.
+                const calibratedInitialView = armaToLeaflet([mapConfig.InitialViewLng, mapConfig.InitialViewLat]);
+                map.setView(calibratedInitialView, mapConfig.InitialViewZoom);
+            } else {
+                map.fitBounds(bounds);
+            }
+
+            map.setMaxBounds(bounds.pad(0.2)); // Kalibrierte Bounds als maximale Kartengrenzen
+            playerMarkersLayer.addTo(map);
+            damageEventsLayer.addTo(map);
+        }
+
+        async function initialize() {
+            let user = null;
+            try {
+                user = await fetchData('users/me');
+            } catch (e) {
+            }
+            updateUserDisplay(user);
+
+            try {
+                if (user) {
+                    const serversResponse = await fetchData('dashboard/servers');
+                    serverSelect.innerHTML = '<option selected disabled value="">Please select a server...</option>';
+                    allServersData = {};
+                    const populateGroup = (label, servers) => {
+                        if (!servers || servers.length === 0) return;
+                        const group = document.createElement('optgroup');
+                        group.label = label;
+                        servers.forEach(server => {
+                            const option = document.createElement('option');
+                            option.value = server.id;
+                            option.textContent = server.name;
+                            group.appendChild(option);
+                            allServersData[server.id] = server;
+                        });
+                        serverSelect.appendChild(group);
+                    };
+                    populateGroup('My Servers', serversResponse.owned);
+                    populateGroup('Shared With Me', serversResponse.shared);
+                    populateGroup('Admin View', serversResponse.admin);
+                } else {
+                    const publicServers = await fetchData('public/servers');
+                    serverSelect.innerHTML = '<option selected disabled value="">Please select a server...</option>';
+                    allServersData = {};
+                    const listedServers = publicServers.filter(server => server.is_listed);
+                    const group = document.createElement('optgroup');
+                    group.label = 'Public Servers';
+                    listedServers.forEach(server => {
+                        const option = document.createElement('option');
+                        option.value = server.id;
+                        option.textContent = server.name;
+                        group.appendChild(option);
+                    });
+                    serverSelect.appendChild(group);
+                    publicServers.forEach(server => {
+                        allServersData[server.id] = server;
+                    });
+                }
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const serverIdFromUrl = urlParams.get('server_id');
+                if (serverIdFromUrl && allServersData[serverIdFromUrl]) {
+                    if (!document.querySelector(`option[value="${serverIdFromUrl}"]`)) {
+                        const group = document.querySelector('optgroup') || serverSelect;
+                        const option = document.createElement('option');
+                        option.value = serverIdFromUrl;
+                        option.textContent = allServersData[serverIdFromUrl].name + " (Direct Link)";
+                        group.appendChild(option);
+                    }
+                    setTimeout(() => {
+                        serverSelect.value = serverIdFromUrl;
+                        handleServerSelection(serverIdFromUrl, urlParams.get('from'), urlParams.get('to'));
+                    }, 100);
+                }
+            } catch (error) {
+                console.error("Initialization failed:", error);
+                serverSelect.innerHTML = '<option disabled>Error loading servers.</option>';
+            }
+        }
+
+        async function handleServerSelection(id, from = null, to = null) {
+            stopLiveMode();
+            stopPlayback();
+            frameCache.clear();
+            const serverData = allServersData[id];
+            if (!serverData) return;
+            initMapFromConfig(serverData.map_config);
+            const playerDamageTicksContainer = document.getElementById('player-damage-ticks-container');
+            playerDamageTicksContainer.innerHTML = '';
+            document.getElementById('downsample-warning').classList.add('d-none');
+            let ep = `public/positions/timestamps/${id}`;
+            if (from && to) {
+                ep += `?from=${from}&to=${to}`;
+                document.getElementById('time-range-start').value = unixToDateTimeLocal(from);
+                document.getElementById('time-range-end').value = unixToDateTimeLocal(to);
+            }
+            try {
+                const data = await fetchData(ep);
+                if (!data.timestamps || !data.timestamps.length) {
+                    alert("No position data for this time range.");
+                    timeSlider.disabled = true;
+                    playPauseBtn.disabled = true;
+                    return;
+                }
+                if (data.was_downsampled) document.getElementById('downsample-warning').classList.remove('d-none');
+                keyframeTimestamps = data.timestamps;
+                const minTs = keyframeTimestamps[0], maxTs = keyframeTimestamps[keyframeTimestamps.length - 1];
+                timeSlider.min = minTs;
+                timeSlider.max = maxTs;
+                timeSlider.value = maxTs;
+                timeSlider.disabled = false;
+                playPauseBtn.disabled = false;
+                const [damageTicks, allEvents] = await Promise.all([fetchData(`public/events/timestamps/${id}?from=${minTs}&to=${maxTs}`), fetchData(`public/damage_events/range/${id}?from=${minTs}&to=${maxTs}`)]);
+                damageEventsForRange = allEvents;
+                renderDamageTicks(damageTicks, minTs, maxTs, document.getElementById('damage-ticks-container'), 'damage-tick');
+                renderEventLog([]);
+                await updateMapAndList(timeSlider.value);
+            } catch (e) {
+                console.error("Failed during server selection:", e);
+                timeSlider.disabled = true;
+                playPauseBtn.disabled = true;
+                playerList.innerHTML = '<div class="list-group-item bg-transparent">Could not load timeline data.</div>';
+            }
+        }
+
+        function renderPositions(positions) {
+            playerMarkersLayer.clearLayers();
+            playerMarkerMap.clear();
+            const currentSliderTimestamp = parseInt(timeSlider.value, 10);
+            const STALE_THRESHOLD_SECONDS = 300;
+            const visiblePositions = positions.filter(p => isLiveModeActive || (currentSliderTimestamp - p.eventTimestamp) < STALE_THRESHOLD_SECONDS);
+            if (!visiblePositions || !visiblePositions.length) {
+                updatePlayerList([]);
+                return;
+            }
+
+            visiblePositions.forEach(p => {
+                const leafletCoords = armaToLeaflet([p.absolutePosX, p.absolutePosZ]);
+                const displayName = nameCache.get(p.playerGuid) || p.playerGuid;
+                const color = getFactionColor(p.faction);
+                let htmlContent = `<div class="position-relative"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="${color}" d="M12 2 L20 22 L12 17 L4 22 Z" /></svg>`;
+                if (p.inVehicle) {
+                    htmlContent += `<div class="vehicle-icon-container" style="top: -18px; left: 0px;"><i class="bi bi-car-front-fill"></i></div>`;
+                }
+                htmlContent += `</div>`;
+                const icon = L.divIcon({
+                    className: 'player-icon-container',
+                    html: htmlContent,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+                const marker = L.marker(leafletCoords, {
+                    icon: icon,
+                    rotationAngle: p.rotationX,
+                    rotationOrigin: 'center center'
+                });
+                const vehicleIconHTML = p.inVehicle ? '<i class="bi bi-car-front-fill"></i> ' : '';
+                marker.bindTooltip(vehicleIconHTML + displayName, {
+                    permanent: true,
+                    direction: 'top',
+                    className: 'player-label'
+                });
+                marker.on('click', () => highlightPlayer(p.playerGuid));
+                playerMarkersLayer.addLayer(marker);
+                playerMarkerMap.set(p.playerGuid, marker);
+            });
+            updatePlayerList(visiblePositions);
+            resolveAndApplyNames(positions);
+        }
+
+        async function createHeatmapForInterval(start, end) {
+            if (!map) return;
+            removeHeatmap();
+            const id = serverSelect.value, endpoint = `public/heatmap?server_id=${id}&start=${start}&end=${end}`;
+            try {
+                const heatPoints = await fetchData(endpoint);
+                if (heatPoints && heatPoints.length > 0) {
+                    const latLngs = heatPoints.map(p => {
+                        const latLng = armaToLeaflet([p[1], p[0]]); // p[1] is X, p[0] is Z
+                        return [latLng.lat, latLng.lng, p[2]]; // Heatmap expects [lat, lng, intensity]
+                    });
+                    heatLayer = L.heatLayer(latLngs, {
+                        radius: 20,
+                        blur: 15,
+                        gradient: {0.2: 'blue', 0.4: 'lime', 0.6: 'yellow', 0.8: 'orange', 1.0: 'red'}
+                    }).addTo(map);
+                } else {
+                    alert("No data for heatmap.");
+                }
+            } catch (e) {
+            }
+        }
+
+        function handleGoToCoords() {
+            if (!map) return;
+            const parts = gotoCoordsInput.value.replace(/\s/g, '').split(',');
+            if (parts.length !== 2) {
+                alert("Invalid format. Use 'X, Z'");
+                return;
+            }
+            const x = parseFloat(parts[0]), z = parseFloat(parts[1]);
+            if (isNaN(x) || isNaN(z)) {
+                alert("Invalid coordinates.");
+                return;
+            }
+            const target = armaToLeaflet([x, z]);
+            map.flyTo(target, map.getMaxZoom() - 1);
+            if (gotoMarker) map.removeLayer(gotoMarker);
+            gotoMarker = L.circleMarker(target, {
+                radius: 10,
+                color: '#ffc107',
+                fillColor: '#ffc107',
+                fillOpacity: 0.5
+            }).addTo(map);
+            setTimeout(() => {
+                if (gotoMarker) {
+                    map.removeLayer(gotoMarker);
+                    gotoMarker = null;
+                }
+            }, 5000);
+            gotoModal.hide();
+        }
+
+        function stopPlayback() {
+            if (isPlaying || isBuffering) {
+                clearInterval(playbackInterval);
+                isBuffering = false;
+                isPlaying = false;
+                playPauseBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
+            }
+        }
+
+        async function bufferFrames() { /* ... unverändert ... */
+        }
+
+        function renderEventLog(filteredEvents) {
+            eventLog.innerHTML = '';
+            if (!filteredEvents || filteredEvents.length === 0) {
+                eventLog.innerHTML = '<div class="list-group-item bg-transparent">No events to display. Select a player to see their specific events.</div>';
+                return;
+            }
+            filteredEvents.sort((a, b) => new Date(b.EventTimestamp) - new Date(a.EventTimestamp));
+            filteredEvents.forEach(eventData => {
+                const item = document.createElement('a');
+                item.href = "#";
+                item.className = 'list-group-item list-group-item-action bg-transparent event-log-item';
+                const killer = nameCache.get(eventData.KillerGUID) || 'Unknown';
+                const victim = nameCache.get(eventData.VictimGUID) || 'Unknown';
+                const weapon = eventData.WeaponName;
+                const ffClass = eventData.IsFriendlyFire ? 'text-info' : 'text-danger';
+                const distance = Math.round(eventData.Distance);
+                const hitZone = eventData.HitZone;
+                item.innerHTML = `<small>${new Date(eventData.EventTimestamp).toLocaleTimeString()}:</small> <span class="fw-bold">${killer}</span> hit <span class="${ffClass} fw-bold">${victim}</span> with <span class="fw-bold">${weapon}</span>.<br><small class="text-muted">↳ Hit Zone: <strong>${hitZone}</strong>, Distance: <strong>${distance}m</strong></small>`;
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    stopPlayback();
+                    stopLiveMode();
+                    const targetTimestamp = new Date(eventData.EventTimestamp).getTime() / 1000;
+                    const closestTimestamp = keyframeTimestamps.reduce((prev, curr) => (Math.abs(curr - targetTimestamp) < Math.abs(prev - targetTimestamp) ? curr : prev));
+                    timeSlider.value = closestTimestamp;
+                    highlightPlayer(eventData.VictimGUID);
+                    updateMapAndList(closestTimestamp);
+                });
+                eventLog.appendChild(item);
+            });
+        }
+
+        function startLiveMode() {
+            if (isLiveModeActive) return;
+            const serverId = serverSelect.value;
+            if (!serverId) return;
+            stopPlayback();
+            isLiveModeActive = true;
+            liveModeBtn.classList.remove('btn-outline-secondary');
+            liveModeBtn.classList.add('btn-danger');
+            liveModeBtn.querySelector('.live-indicator').classList.add('active');
+            timeSlider.disabled = true;
+            playPauseBtn.disabled = true;
+            timeLabel.textContent = "LIVE";
+            const liveLoop = async () => {
+                if (!isLiveModeActive) return;
+                try {
+                    const positions = await fetchData(`public/positions/latest/${serverId}`);
+                    renderPositions(positions);
+                } catch (e) {
+                    console.error("Live update failed:", e);
+                } finally {
+                    if (isLiveModeActive) {
+                        liveModeTimeout = setTimeout(liveLoop, 2000);
+                    }
+                }
+            };
+            liveLoop();
+        }
+
+        function stopLiveMode() {
+            if (!isLiveModeActive) return;
+            clearTimeout(liveModeTimeout);
+            isLiveModeActive = false;
+            liveModeBtn.classList.add('btn-outline-secondary');
+            liveModeBtn.classList.remove('btn-danger');
+            liveModeBtn.querySelector('.live-indicator').classList.remove('active');
+            if (keyframeTimestamps.length > 0) {
+                timeSlider.disabled = false;
+                playPauseBtn.disabled = false;
+            }
+            if (timeSlider.value) {
+                updateMapAndList(timeSlider.value);
+            }
+        }
+
+        function startPlayback() {
+            if (isPlaying || isBuffering) {
+                stopPlayback();
+                return;
+            }
+            stopLiveMode();
+            isBuffering = true;
+            playPauseBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            if (parseInt(timeSlider.value, 10) >= keyframeTimestamps[keyframeTimestamps.length - 1]) {
+                timeSlider.value = keyframeTimestamps[0];
+            }
+            bufferFrames().then(() => {
+                if (!isBuffering) return;
+                isBuffering = false;
+                isPlaying = true;
+                playPauseBtn.innerHTML = '<i class="bi bi-pause-fill"></i>';
+                playbackInterval = setInterval(() => {
+                    const currentValue = parseInt(timeSlider.value, 10);
+                    const currentIndex = keyframeTimestamps.findIndex(ts => ts >= currentValue);
+                    if (currentIndex === -1 || currentIndex >= keyframeTimestamps.length - 1) {
+                        stopPlayback();
+                        return;
+                    }
+                    const nextTimestamp = keyframeTimestamps[currentIndex + 1];
+                    timeSlider.value = nextTimestamp;
+                    const cachedData = frameCache.get(nextTimestamp);
+                    if (cachedData) {
+                        renderPositions(cachedData.positions);
+                        renderDamageEvents(cachedData.damageEvents);
+                        timeLabel.textContent = new Date(nextTimestamp * 1000).toLocaleString();
+                    } else {
+                        updateMapAndList(nextTimestamp);
+                    }
+                }, 200); // Standard playback speed
+            });
+        }
+
+        async function updateMapAndList(ts) {
+            if (!ts || isNaN(ts)) return;
+            if (frameCache.has(ts)) {
+                const cachedData = frameCache.get(ts);
+                renderPositions(cachedData.positions);
+                renderDamageEvents(cachedData.damageEvents);
+                timeLabel.textContent = new Date(ts * 1000).toLocaleString();
+                return;
+            }
+            const id = serverSelect.value;
+            const iso = new Date(parseInt(ts, 10) * 1000).toISOString();
+            timeLabel.textContent = new Date(parseInt(ts, 10) * 1000).toLocaleString();
+            const posEp = `public/positions/${id}/${iso}`;
+            try {
+                const positions = await fetchData(posEp);
+                const currentTimestamp = parseInt(ts, 10);
+                const eventsForThisFrame = damageEventsForRange.filter(e => {
+                    const eventTs = new Date(e.EventTimestamp).getTime() / 1000;
+                    return eventTs <= currentTimestamp && eventTs > (currentTimestamp - 2);
+                });
+                renderPositions(positions);
+                renderDamageEvents(eventsForThisFrame);
+            } catch (e) {
+                console.error("Failed to update map and list", e);
+                renderPositions([]);
+                renderDamageEvents([]);
+            }
+        }
+
+        async function highlightPlayer(guid) {
+            const marker = playerMarkerMap.get(guid);
+            if (marker) map.flyTo(marker.getLatLng(), map.getZoom());
+            document.querySelectorAll('#player-list .list-group-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.guid === guid);
+            });
+            const playerSpecificEvents = damageEventsForRange.filter(e => e.KillerGUID === guid || e.VictimGUID === guid);
+            renderEventLog(playerSpecificEvents);
+            try {
+                const playerEventTimestamps = playerSpecificEvents.map(e => new Date(e.EventTimestamp).getTime() / 1000);
+                renderDamageTicks(playerEventTimestamps, timeSlider.min, timeSlider.max, document.getElementById('player-damage-ticks-container'), 'player-damage-tick');
+            } catch (e) {
+                console.error(`Could not load events for player ${guid}`, e);
+                document.getElementById('player-damage-ticks-container').innerHTML = '';
+                renderEventLog([]);
+            }
+        }
+
+        function updatePlayerList(pos) {
+            playerList.innerHTML = '';
+            if (!pos.length) {
+                playerList.innerHTML = '<div class="list-group-item bg-transparent">No units found for this timestamp.</div>';
+                return;
+            }
+            pos.sort((a, b) => {
+                const factionA = a.faction.name.toUpperCase();
+                const factionB = b.faction.name.toUpperCase();
+                const nameA = (nameCache.get(a.playerGuid) || a.playerGuid).toUpperCase();
+                const nameB = (nameCache.get(b.playerGuid) || b.playerGuid).toUpperCase();
+                if (factionA < factionB) return -1;
+                if (factionA > factionB) return 1;
+                if (nameA < nameB) return -1;
+                if (nameA > nameB) return 1;
+                return 0;
+            });
+            pos.forEach(p => {
+                const item = document.createElement('a');
+                item.href = "#";
+                item.className = 'list-group-item list-group-item-action bg-transparent';
+                item.dataset.guid = p.playerGuid;
+                const displayName = nameCache.get(p.playerGuid) || p.playerGuid;
+                const vehicleIcon = p.inVehicle ? '<i class="bi bi-car-front-fill ms-2"></i>' : '';
+                item.innerHTML = `<span class="list-dot" style="background-color:${getFactionColor(p.faction)};"></span> ${displayName} ${vehicleIcon}`;
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    highlightPlayer(p.playerGuid);
+                });
+                playerList.appendChild(item);
+            });
+        }
+
+        async function resolveAndApplyNames(positions) {
+            const guids = positions.map(p => p.playerGuid).filter(Boolean);
+            const resolve = [...new Set(guids)].filter(g => !nameCache.has(g));
+            if (resolve.length === 0) {
+                updateRenderedNames();
+                return;
+            }
+            try {
+                const nameMap = await fetchData('public/players/names', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({guids: resolve})
+                });
+                for (const [g, n] of Object.entries(nameMap)) {
+                    if (n) nameCache.set(g, n);
+                }
+                updateRenderedNames();
+            } catch (e) {
+                console.error("Error fetching names:", e);
+            }
+        }
+
+        function updateRenderedNames() {
+            playerMarkerMap.forEach((m, g) => {
+                if (nameCache.has(g)) {
+                    const tooltipContent = m.getTooltip().getContent();
+                    const newContent = tooltipContent.replace(g, nameCache.get(g));
+                    m.setTooltipContent(newContent);
+                }
+            });
+            playerList.querySelectorAll('.list-group-item').forEach(i => {
+                const g = i.dataset.guid;
+                if (g && nameCache.has(g)) {
+                    const dotSpan = i.querySelector('span.list-dot');
+                    const vehicleIconHTML = i.querySelector('i') ? i.querySelector('i').outerHTML : '';
+                    i.innerHTML = `${dotSpan.outerHTML} ${nameCache.get(g)} ${vehicleIconHTML}`;
+                }
+            });
+        }
+
+        function renderDamageEvents(events) {
+            damageEventsLayer.clearLayers();
+            if (!events || !events.length) return;
+            events.forEach(d => {
+                const killerMarker = playerMarkerMap.get(d.KillerGUID);
+                const victimMarker = playerMarkerMap.get(d.VictimGUID);
+                if (!killerMarker || !victimMarker) return;
+                const victimLatLng = victimMarker.getLatLng();
+                const killerLatLng = killerMarker.getLatLng();
+                const color = d.IsFriendlyFire ? '#3498db' : '#e74c3c';
+                const line = L.polyline([killerLatLng, victimLatLng], {
+                    color: color,
+                    weight: 2,
+                    opacity: .8
+                }).addTo(damageEventsLayer);
+                L.polylineDecorator(line, {
+                    patterns: [{
+                        offset: '100%',
+                        repeat: 0,
+                        symbol: L.Symbol.arrowHead({
+                            pixelSize: 12,
+                            polygon: false,
+                            pathOptions: {stroke: true, weight: 2, color: color, opacity: 1}
+                        })
+                    }]
+                }).addTo(damageEventsLayer);
+                const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="${color}"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5zm4 4h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>`,
+                    icon = L.divIcon({
+                        className: 'damage-icon-container',
+                        html: svg,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    });
+                const distance = Math.round(d.Distance);
+                const popupContent = `<b>Hit!</b><br><b>Attacker:</b> ${nameCache.get(d.KillerGUID) || d.KillerGUID}<br><b>Victim:</b> ${nameCache.get(d.VictimGUID) || d.VictimGUID}<br><b>Weapon:</b> ${d.WeaponName}<br><b>Hit Zone:</b> ${d.HitZone}<br><b>Distance:</b> ${distance}m`;
+                L.marker(victimLatLng, {icon: icon}).bindPopup(popupContent).addTo(damageEventsLayer);
+            });
+        }
+
+        function renderDamageTicks(timestamps, min, max, container, className) {
+            container.innerHTML = '';
+            const dur = max - min;
+            if (dur <= 0) return;
+            const tickPositions = new Set();
+            const timelineWidth = timeSlider.offsetWidth;
+            timestamps.forEach(ts => {
+                if (ts >= min && ts <= max) {
+                    const percentage = ((ts - min) / dur);
+                    const pixelPosition = Math.floor(percentage * timelineWidth);
+                    tickPositions.add(pixelPosition);
+                }
+            });
+            tickPositions.forEach(pixelPos => {
+                const t = document.createElement('div');
+                t.className = className;
+                t.style.left = `${pixelPos}px`;
+                container.appendChild(t);
+            });
+        }
+
+        const removeHeatmap = () => {
+            if (heatLayer) map.removeLayer(heatLayer);
+            heatLayer = null;
+        };
+        const getFactionColor = (f) => {
+            if (!f || f.colorR === undefined) return '#ffc107';
+            const r = Math.round(f.colorR * 255), g = Math.round(f.colorG * 255), b = Math.round(f.colorB * 255);
+            return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        };
+        const unixToDateTimeLocal = (unix) => {
+            const d = new Date(unix * 1000);
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            return d.toISOString().slice(0, 16);
+        };
+        const updateUserDisplay = (user) => {
+            if (user && user.id) {
+                userDisplay.innerHTML = `<div class="dropdown"><a href="#" class="d-block link-light text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><img src="${user.avatar}" alt="${user.username}" width="32" height="32" class="rounded-circle"><span class="ms-2 d-none d-md-inline">${user.username}</span></a><ul class="dropdown-menu dropdown-menu-dark text-small"><li><a class="dropdown-item" href="/dashboard.html">Dashboard</a></li><li><a class="dropdown-item active" href="/map.html">Live Map</a></li><li><hr class="dropdown-divider"></li><li><a class="dropdown-item" href="/auth/logout">Logout</a></li></ul></div>`;
+            } else {
+                userDisplay.innerHTML = '<a href="/auth/discord/login" class="btn btn-outline-light">Login</a>';
+            }
+        };
+
+        // --- Event Listeners ---
+        serverSelect.addEventListener('change', e => {
+            const id = e.target.value;
+            const url = new URL(window.location);
+            url.searchParams.set('server_id', id);
+            url.searchParams.delete('from');
+            url.searchParams.delete('to');
+            window.history.pushState({}, '', url);
+            document.getElementById('time-range-start').value = '';
+            document.getElementById('time-range-end').value = '';
+            handleServerSelection(id);
+        });
+        timeSlider.addEventListener('input', e => {
+            stopLiveMode();
+            stopPlayback();
+            timeLabel.textContent = new Date(parseInt(e.target.value, 10) * 1000).toLocaleString();
+        });
+        timeSlider.addEventListener('change', e => updateMapAndList(e.target.value));
+        liveModeBtn.addEventListener('click', () => {
+            if (isLiveModeActive) {
+                stopLiveMode();
+            } else {
+                startLiveMode();
+            }
+        });
+        playPauseBtn.addEventListener('click', () => {
+            if (isPlaying || isBuffering) {
+                stopPlayback();
+            } else {
+                startPlayback();
+            }
+        });
+        document.getElementById('apply-time-range-btn').addEventListener('click', () => {
+            stopLiveMode();
+            stopPlayback();
+            const sVal = document.getElementById('time-range-start').value,
+                eVal = document.getElementById('time-range-end').value;
+            if (!sVal || !eVal) return;
+            const from = Math.floor(new Date(sVal).getTime() / 1000), to = Math.floor(new Date(eVal).getTime() / 1000);
+            if (from >= to) return;
+            const id = serverSelect.value;
+            if (!id) return;
+            const url = new URL(window.location);
+            url.searchParams.set('server_id', id);
+            url.searchParams.set('from', from);
+            url.searchParams.set('to', to);
+            window.history.pushState({}, '', url);
+            handleServerSelection(id, from, to);
+        });
+        document.getElementById('reset-time-range-btn').addEventListener('click', () => {
+            stopLiveMode();
+            stopPlayback();
+            const id = serverSelect.value;
+            if (!id) return;
+            document.getElementById('time-range-start').value = '';
+            document.getElementById('time-range-end').value = '';
+            const url = new URL(window.location);
+            url.searchParams.set('server_id', id);
+            url.searchParams.delete('from');
+            url.searchParams.delete('to');
+            window.history.pushState({}, '', url);
+            handleServerSelection(id);
+        });
+        document.getElementById('heatmap-from-range-btn').addEventListener('click', () => {
+            const start = timeSlider.min, end = timeSlider.max;
+            if (!start || !end || start >= end) return;
+            createHeatmapForInterval(start, end);
+        });
+        document.getElementById('heatmap-last-hour-btn').addEventListener('click', () => {
+            const end = parseInt(timeSlider.value, 10), start = end - 3600;
+            createHeatmapForInterval(start, end);
+        });
+        document.getElementById('remove-heatmap-btn').addEventListener('click', removeHeatmap);
+        document.getElementById('player-search-input').addEventListener('input', e => {
+            const t = e.target.value.toLowerCase();
+            playerList.querySelectorAll('.list-group-item').forEach(i => {
+                i.style.display = i.textContent.toLowerCase().includes(t) ? '' : 'none';
+            });
+        });
+        gotoCoordsBtn.addEventListener('click', handleGoToCoords);
+        gotoCoordsInput.addEventListener('keypress', e => {
+            if (e.key === 'Enter') handleGoToCoords();
+        });
+        document.getElementById('accept-cookies').addEventListener('click', () => {
+            const d = new Date();
+            d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000));
+            document.cookie = "cookie_consent=true;expires=" + d.toUTCString() + ";path=/";
+            document.getElementById('cookie-banner').classList.remove('show');
+        });
+        if (!(`; ${document.cookie}`.includes(`; cookie_consent=`))) {
+            setTimeout(() => {
+                document.getElementById('cookie-banner').classList.add('show');
+            }, 500);
+        }
+
+        initialize();
+    });
+</script>
+</body>
+</html>
