@@ -130,25 +130,25 @@ func PostPositionsHandler(c *gin.Context) {
 		return
 	}
 
-	// Datenstrukturen für die Verarbeitung
 	factionCache := make(map[string]models.Faction)
 	var allPositionsToSave []models.PlayerPosition
 	identitiesToUpdate := make(map[string]string)
 	var latestTimestamp time.Time
 
+	playerNameRegex := regexp.MustCompile(`"playerName"\s*:\s*"(.*?)"`)
 	for _, jsonString := range playersData {
-		sanitizedJsonString := jsonString
+
 		matches := playerNameRegex.FindStringSubmatch(jsonString)
-		if len(matches) == 2 {
-			originalName := matches[1]
-			sanitizedName := strings.ReplaceAll(originalName, `"`, "'")
-			if originalName != sanitizedName {
-				sanitizedJsonString = strings.Replace(jsonString, originalName, sanitizedName, 1)
-			}
+		if len(matches) > 1 {
+			extractedName := matches[1]
+			cleanedName := strings.ReplaceAll(extractedName, `"`, `\"`)
+
+			correctPlayerNameField := fmt.Sprintf(`"playerName": "%s"`, cleanedName)
+			jsonString = strings.Replace(jsonString, matches[0], correctPlayerNameField, 1)
 		}
 
 		var singlePlayerPayload models.PositionPayload
-		if err := json.Unmarshal([]byte(sanitizedJsonString), &singlePlayerPayload); err != nil {
+		if err := json.Unmarshal([]byte(jsonString), &singlePlayerPayload); err != nil {
 			log.Printf("WARNING (ServerID %s): Could not parse inner JSON: %v. Skipping player. JSON was: %s", serverID, err, jsonString)
 			continue
 		}
@@ -173,9 +173,7 @@ func PostPositionsHandler(c *gin.Context) {
 			factionCache[faction.Name] = faction
 		}
 
-		// Erstelle die Datenbank-Records für die Positionen
 		for _, posData := range singlePlayerPayload.Positions {
-
 			eventTime := time.Unix(posData.Timestamp, 0)
 			if eventTime.After(latestTimestamp) {
 				latestTimestamp = eventTime
@@ -207,7 +205,6 @@ func PostPositionsHandler(c *gin.Context) {
 			return
 		}
 
-		// **MODIFICATION**: Update the server's last processed position timestamp asynchronously
 		if !latestTimestamp.IsZero() {
 			go func(sID uuid.UUID, ts time.Time) {
 				if err := database.DB.Model(&models.Server{}).Where("id = ?", sID).Update("last_processed_position_timestamp", ts).Error; err != nil {
