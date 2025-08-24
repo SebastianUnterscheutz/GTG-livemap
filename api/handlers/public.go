@@ -68,7 +68,7 @@ func GetTimestampsHandler(c *gin.Context) {
 	fromStr := c.Query("from")
 	toStr := c.Query("to")
 
-	if fromStr != "" && toStr != "" {
+	if fromStr == "" && toStr == "" {
 		cacheKey := fmt.Sprintf(cache.RecentTimestampsCacheKey, serverID.String())
 		var cachedTimestamps []int64
 		if err := cache.Get(cacheKey, &cachedTimestamps); err == nil && len(cachedTimestamps) > 0 {
@@ -79,16 +79,15 @@ func GetTimestampsHandler(c *gin.Context) {
 			})
 			return
 		}
-
+		// Falls Cache leer, weiter mit Datenbankabfrage für die letzten 3 Stunden
+		threeHoursAgo := time.Now().UTC().Add(-3 * time.Hour)
+		query = query.Where("event_timestamp >= ?", threeHoursAgo)
+	} else {
+		// Bei Vorhandensein von FROM/TO, die Abfrage direkt auf die DB anwenden.
 		fromTs, _ := strconv.ParseInt(fromStr, 10, 64)
 		toTs, _ := strconv.ParseInt(toStr, 10, 64)
 		query = query.Where("event_timestamp BETWEEN ? AND ?", time.Unix(fromTs, 0), time.Unix(toTs, 0))
-	} else {
-		threeHoursAgo := time.Now().UTC().Add(-3 * time.Hour)
-		query = query.Where("event_timestamp >= ?", threeHoursAgo)
 	}
-
-	// 4. Downsampling-Logik ausführen (bleibt unverändert)
 	var timestamps []time.Time
 	var wasDownsampled bool = false
 
@@ -112,10 +111,10 @@ func GetTimestampsHandler(c *gin.Context) {
 		subQuery := query.Distinct("event_timestamp").Order("event_timestamp asc")
 
 		rawSQL := fmt.Sprintf(
-			`SELECT event_timestamp FROM 
-				(SELECT event_timestamp, ROW_NUMBER() OVER (ORDER BY event_timestamp) as rn, COUNT(*) OVER () as total_count 
-				 FROM (?) as t) as ranked 
-			 WHERE MOD(rn, CEIL(total_count / ?)) = 1 OR rn = total_count`,
+			`SELECT event_timestamp FROM
+             (SELECT event_timestamp, ROW_NUMBER() OVER (ORDER BY event_timestamp) as rn, COUNT(*) OVER () as total_count
+              FROM (?) as t) as ranked
+           WHERE MOD(rn, CEIL(total_count / ?)) = 1 OR rn = total_count`,
 		)
 
 		if err := database.DB.Raw(rawSQL, subQuery, float64(MaxTimestamps)).Scan(&timestamps).Error; err != nil {

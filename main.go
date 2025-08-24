@@ -38,7 +38,7 @@ func setup() {
 	log.Println("Redis connection established")
 	cache.Init()
 	database.Connect()
-	database.Migrate()
+	//database.Migrate()
 	database.Seed()
 	handlers.InitAuth()
 	utils.InitEncryption()
