@@ -271,7 +271,7 @@ func downloadSftpFile(server models.Server, path string) (io.Reader, error) {
 		return nil, fmt.Errorf("failed to create sftp client: %w", err)
 	}
 	defer client.Close()
-	file, err := client.Open(path)
+	file, err := client.Open(ToSlash(path))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sftp file: %w", err)
 	}
@@ -303,7 +303,7 @@ func downloadFtpFile(server models.Server, path string) (io.Reader, error) {
 	if err = conn.Login(server.FtpUser, string(decryptedPass)); err != nil {
 		return nil, fmt.Errorf("ftp login failed: %w", err)
 	}
-	r, err := conn.Retr(path)
+	r, err := conn.Retr(ToSlash(path))
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve ftp file: %w", err)
 	}
@@ -313,4 +313,9 @@ func downloadFtpFile(server models.Server, path string) (io.Reader, error) {
 		return nil, fmt.Errorf("failed to read ftp content: %w", err)
 	}
 	return &buf, nil
+}
+
+// ToSlash ersetzt alle Backslashes (\) in einem String durch Forward-Slashes (/).
+func ToSlash(path string) string {
+	return strings.ReplaceAll(path, "\\", "/")
 }

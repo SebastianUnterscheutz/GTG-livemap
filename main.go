@@ -96,12 +96,10 @@ func startWebServer(ctx context.Context, wg *sync.WaitGroup) {
 		serverAPI := apiV1.Group("/server")
 		serverAPI.Use(middleware.APIKeyAuthMiddleware())
 		{
-			// Routen für die Zugriffsverwaltung
 			serverAPI.GET("/access", handlers.APIGetAccessListHandler)
 			serverAPI.POST("/access", handlers.APIGrantAccessHandler)
 			serverAPI.DELETE("/access/:user_id", handlers.APIRevokeAccessHandler)
 
-			// Routen für die Kartenverwaltung
 			serverAPI.GET("/map", handlers.APIGetCurrentMapHandler)
 			serverAPI.PUT("/map", handlers.APISetCurrentMapHandler)
 		}
