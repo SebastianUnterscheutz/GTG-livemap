@@ -27,7 +27,7 @@ func GetUserServersHandler(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	userIDUint64 := userID.(uint64)
 
-	// Diese Struktur enthält ALLE Felder für Owner/Admins
+	// This structure contains ALLE Felder für Owner/Admins
 	type FullServerResponse struct {
 		ID                uuid.UUID        `json:"id"`
 		Name              string           `json:"name"`
@@ -45,7 +45,7 @@ func GetUserServersHandler(c *gin.Context) {
 	}
 
 	// ★★★ NEUE STRUKTUR FÜR GETEILTE SERVER ★★★
-	// Diese Struktur enthält nur die absolut notwendigen Informationen.
+	// This structure contains nur die absolut notwendigen Informationen.
 	type SharedServerResponse struct {
 		ID        uuid.UUID        `json:"id"`
 		Name      string           `json:"name"`
@@ -64,7 +64,7 @@ func GetUserServersHandler(c *gin.Context) {
 		Admin:  []FullServerResponse{},
 	}
 
-	// Helferfunktion für volle Details (Owner/Admin)
+	// Helper function for volle Details (Owner/Admin)
 	makeFullResponse := func(s models.Server) FullServerResponse {
 		s.MapConfig.TilesURL = rewriteTilesURL(s.MapConfig.TilesURL)
 		return FullServerResponse{
@@ -100,7 +100,7 @@ func GetUserServersHandler(c *gin.Context) {
 
 	// Versuche, die Daten aus dem Cache zu lesen.
 	if err := cache.Get(cacheKey, &cachedResponse); err == nil {
-		// Cache-Treffer! Sende die gecachten Daten und beende die Funktion.
+		// Cache hit! Sende die gecachten Daten und beende die Funktion.
 		c.JSON(http.StatusOK, cachedResponse)
 		return
 	}
@@ -205,7 +205,7 @@ func CreateServerHandler(c *gin.Context) {
 	}
 
 	// VALIDIERUNG
-	if !validServerNameRegex.MatchString(req.Name) || len(req.Name) > 50 { // Längenlimit hinzufügen
+	if !validServerNameRegex.MatchString(req.Name) || len(req.Name) > 50 { // Add length limit
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Server name contains invalid characters or is too long. Allowed: a-z, 0-9, [], -, _"})
 		return
 	}
@@ -313,7 +313,7 @@ func UpdateServerHandler(c *gin.Context) {
 			updates["encrypted_password"] = encryptedPass
 		}
 	}
-	// Gleiche Logik für den SSH-Key
+	// Same logic for den SSH-Key
 	if req.SshKey != "" {
 		if req.SshKey == "_RESET_" {
 			updates["encrypted_ssh_key"] = nil
@@ -346,19 +346,19 @@ func UpdateServerHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "server updated successfully"})
 }
 
-// DeleteServerHandler löscht einen Server und alle zugehörigen Daten.
+// DeleteServerHandler deletes a server und alle zugehörigen Daten.
 func DeleteServerHandler(c *gin.Context) {
 	serverIDStr := c.Param("id")
 	serverID, _ := uuid.Parse(serverIDStr)
 
 	var serverToDelete models.Server
 	if err := database.DB.First(&serverToDelete, "id = ?", serverID).Error; err != nil {
-		// Wenn der Server nicht existiert, kann auch nichts gelöscht werden.
+		// If the server does not exist, nothing can be deleted either.
 		c.JSON(http.StatusNotFound, gin.H{"error": "server not found"})
 		return
 	}
 
-	// Wir löschen alle abhängigen Daten in einer Transaktion für die Datensicherheit.
+	// We delete all dependent Daten in einer Transaktion for data security.
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("server_id = ?", serverID).Delete(&models.PlayerPosition{}).Error; err != nil {
 			return err

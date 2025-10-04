@@ -141,7 +141,7 @@ type PositionPayload struct {
 	Positions    []PositionData `json:"positions"`
 }
 
-// Diese Strukturen bleiben größtenteils gleich
+// This structureen bleiben größtenteils gleich
 type FactionColor struct {
 	R float64 `json:"r"`
 	G float64 `json:"g"`

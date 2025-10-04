@@ -72,14 +72,14 @@ func GetTimestampsHandler(c *gin.Context) {
 		cacheKey := fmt.Sprintf(cache.RecentTimestampsCacheKey, serverID.String())
 		var cachedTimestamps []int64
 		if err := cache.Get(cacheKey, &cachedTimestamps); err == nil && len(cachedTimestamps) > 0 {
-			// Cache-Treffer!
+			// Cache hit!
 			c.JSON(http.StatusOK, gin.H{
 				"timestamps":      cachedTimestamps,
 				"was_downsampled": false,
 			})
 			return
 		}
-		// Falls Cache leer, weiter mit Datenbankabfrage für die letzten 3 Stunden
+		// If cache is empty, weiter mit Datenbankabfrage für die letzten 3 Stunden
 		threeHoursAgo := time.Now().UTC().Add(-3 * time.Hour)
 		query = query.Where("event_timestamp >= ?", threeHoursAgo)
 	} else {

@@ -21,23 +21,23 @@ var (
 	CookieStore *sessions.CookieStore // WAR `cookieStore`
 )
 
-// apiKeyCacheEntry speichert alle benötigten IDs für einen Server.
+// apiKeyCacheEntry stores all needed IDs für einen Server.
 type apiKeyCacheEntry struct {
 	serverID    uuid.UUID
-	mapConfigID uint // ★★★ HINZUGEFÜGT ★★★
+	mapConfigID uint // ★★★ ADDED ★★★
 	createdAt   time.Time
 }
 
 var (
 	// apiKeyCache speichert [roherAPIKey] -> cacheEintrag
 	apiKeyCache = make(map[string]apiKeyCacheEntry)
-	// apiKeyMutex schützt den Cache vor gleichzeitigem Lesen/Schreiben.
+	// apiKeyMutex protects den Cache vor gleichzeitigem Lesen/Schreiben.
 	apiKeyMutex sync.RWMutex
-	// cacheTTL gibt an, wie lange ein Schlüssel im Cache gültig ist (z.B. 5 Minuten).
+	// cacheTTL indicates, how long a key is valid in the cache (z.B. 5 Minuten).
 	cacheTTL = 5 * time.Minute
 )
 
-// APIKeyAuthMiddleware verwendet einen In-Memory-Cache, um teure bcrypt-Überprüfungen zu minimieren.
+// APIKeyAuthMiddleware uses a In-Memory-Cache, um teure bcrypt checks.
 func APIKeyAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		incomingAPIKey := c.GetHeader("X-API-KEY")
@@ -60,7 +60,7 @@ func APIKeyAuthMiddleware() gin.HandlerFunc {
 		if found && time.Since(entry.createdAt) < cacheTTL {
 			// ★ CACHE-TREFFER! ★
 			c.Set("server_id", entry.serverID)
-			c.Set("map_config_id", entry.mapConfigID) // ★★★ HINZUGEFÜGT ★★★
+			c.Set("map_config_id", entry.mapConfigID) // ★★★ ADDED ★★★
 			c.Next()
 			return
 		}
@@ -90,14 +90,14 @@ func APIKeyAuthMiddleware() gin.HandlerFunc {
 		apiKeyMutex.Lock()
 		apiKeyCache[incomingAPIKey] = apiKeyCacheEntry{
 			serverID:    matchedServer.ID,
-			mapConfigID: matchedServer.MapConfigID, // ★★★ HINZUGEFÜGT ★★★
+			mapConfigID: matchedServer.MapConfigID, // ★★★ ADDED ★★★
 			createdAt:   time.Now(),
 		}
 		apiKeyMutex.Unlock()
 
 		log.Printf("API Key for server %s (map %d) validated and cached.", matchedServer.ID, matchedServer.MapConfigID)
 
-		// Setze beide Werte im Context für den aktuellen Request.
+		// Set both values in the context für den current request.
 		c.Set("server_id", matchedServer.ID)
 		c.Set("map_config_id", matchedServer.MapConfigID)
 		c.Next()
