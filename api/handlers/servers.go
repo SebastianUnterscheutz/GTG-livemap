@@ -45,8 +45,7 @@ func GetUserServersHandler(c *gin.Context) {
 		HasSshKeySet      bool             `json:"has_ssh_key_set"`
 	}
 
-	// ★★★ NEUE STRUKTUR FOR SHARED SERVER ★★★
-	// This structure contains nur die absolut notwendigen Informationen.
+	// This structure contains only the absolutely necessary information.
 	type SharedServerResponse struct {
 		ID        uuid.UUID        `json:"id"`
 		Name      string           `json:"name"`
@@ -65,7 +64,6 @@ func GetUserServersHandler(c *gin.Context) {
 		Admin:  []FullServerResponse{},
 	}
 
-	// Helper function for volle Details (Owner/Admin)
 	makeFullResponse := func(s models.Server) FullServerResponse {
 		s.MapConfig.TilesURL = rewriteTilesURL(s.MapConfig.TilesURL)
 		return FullServerResponse{
@@ -85,7 +83,6 @@ func GetUserServersHandler(c *gin.Context) {
 		}
 	}
 
-	// ★★★ NEUE HELFERFUNKTION FOR SHARED SERVER ★★★
 	makeSharedResponse := func(s models.Server) SharedServerResponse {
 		s.MapConfig.TilesURL = rewriteTilesURL(s.MapConfig.TilesURL)
 		return SharedServerResponse{
@@ -97,11 +94,9 @@ func GetUserServersHandler(c *gin.Context) {
 
 	cacheKey := fmt.Sprintf("dashboard:servers:%d", userIDUint64)
 
-	var cachedResponse GroupedServerResponse // Definiere die Zielstruktur hier
+	var cachedResponse GroupedServerResponse
 
-	// Versuche, die Daten aus dem Cache zu lesen.
 	if err := cache.Get(cacheKey, &cachedResponse); err == nil {
-		// Cache hit! Sende die gecachten Daten und beende die Funktion.
 		c.JSON(http.StatusOK, cachedResponse)
 		return
 	}
@@ -316,7 +311,6 @@ func UpdateServerHandler(c *gin.Context) {
 			updates["encrypted_password"] = encryptedPass
 		}
 	}
-	// Same logic for den SSH-Key
 	if req.SshKey != "" {
 		if req.SshKey == "_RESET_" {
 			updates["encrypted_ssh_key"] = nil

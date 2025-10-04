@@ -138,17 +138,17 @@ func AdminGetAllUsersHandler(c *gin.Context) {
 		response[i] = AdminUserResponse{
 			ID:               u.ID,
 			Username:         u.Username,
-			Avatar:           toProxyAvatarURL(u.Avatar), // Wiederverwendung der Proxy-Funktion
+			Avatar:           toProxyAvatarURL(u.Avatar),
 			AccountType:      u.AccountType,
 			MaxServers:       u.MaxServers,
-			OwnedServerCount: serverCounts[u.ID], // Get the counted Anzahl
+			OwnedServerCount: serverCounts[u.ID],
 		}
 	}
 
 	c.JSON(http.StatusOK, response)
 }
 
-// AdminGetUserServersHandler fetches all Server (eigene und geteilte) eines bestimmten Benutzers.
+// AdminGetUserServersHandler fetches all servers (owned and shared) of a specific user.
 func AdminGetUserServersHandler(c *gin.Context) {
 	targetUserIDStr := c.Param("user_id")
 	targetUserID, err := strconv.ParseUint(targetUserIDStr, 10, 64)

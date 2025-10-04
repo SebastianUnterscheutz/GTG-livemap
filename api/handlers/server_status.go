@@ -1,4 +1,3 @@
-// in api/handlers/server_status.go (or another suitable file)
 package handlers
 
 import (
