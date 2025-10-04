@@ -30,7 +30,7 @@ func Set(key string, value interface{}, expiration time.Duration) error {
 	return RDB.Set(context.Background(), key, jsonData, expiration).Err()
 }
 
-// Get ruft einen Wert aus dem Cache ab und dekodiert ihn in das übergebene Zielobjekt.
+// Get retrieves a value from the cache and decodes it into the passed target object.
 func Get(key string, dest interface{}) error {
 	val, err := RDB.Get(context.Background(), key).Result()
 	if err == redis.Nil {
@@ -39,24 +39,24 @@ func Get(key string, dest interface{}) error {
 		return err
 	}
 
-	// Dekodiere den JSON-String zurück in das Go-Objekt.
+	// Decode the JSON string back into the Go object.
 	return json.Unmarshal([]byte(val), dest)
 }
 
-// Delete entfernt einen Schlüssel aus dem Cache.
+// Delete removes a key from the cache.
 func Delete(key string) error {
 	return RDB.Del(context.Background(), key).Err()
 }
 
-// RecentTimestampsCacheKey ist der öffentliche Schlüssel für den Timeline-Cache.
+// RecentTimestampsCacheKey is the public key for the timeline cache.
 const RecentTimestampsCacheKey = "timeline:recent:%s" // %s wird durch die serverID ersetzt
 
-// StartRecentTimestampsWorker ist ein Hintergrundprozess, der den Cache aktuell hält.
+// StartRecentTimestampsWorker is a background process that keeps the cache up to date.
 func StartRecentTimestampsWorker(ctx context.Context) {
 	log.Println("Starting Recent Timestamps Cache Worker...")
 	ticker := time.NewTicker(5 * time.Second) // Alle 5 Sekunden aktualisieren
 
-	// Führe die Funktion sofort einmal aus, ohne zu warten.
+	// Execute the function once immediately without waiting.
 	updateRecentTimestampsCache()
 
 	for {
@@ -71,9 +71,10 @@ func StartRecentTimestampsWorker(ctx context.Context) {
 	}
 }
 
+// updateRecentTimestampsCache refreshes the timeline cache for recently active servers.
 func updateRecentTimestampsCache() {
 	var activeServers []models.Server
-	// Finde alle Server, die in der letzten Stunde Daten gesendet haben.
+	// Find all servers that have sent data in the last hour.
 	oneHourAgo := time.Now().UTC().Add(-1 * time.Hour)
 	database.DB.Model(&models.Server{}).
 		Joins("JOIN player_positions ON player_positions.server_id = servers.id AND player_positions.event_timestamp > ?", oneHourAgo).
@@ -102,12 +103,12 @@ func updateRecentTimestampsCache() {
 const RecentDamageEventTimestampsCacheKey = "damagetimeline:recent:%s" // %s wird durch die serverID ersetzt
 
 // ★★★ NEU: Worker für Damage-Event-Timestamps ★★★
-// StartDamageEventTimestampsWorker ist ein Hintergrundprozess, der den Event-Cache aktuell hält.
+// StartDamageEventTimestampsWorker is a background process that keeps the event cache up to date.
 func StartDamageEventTimestampsWorker(ctx context.Context) {
 	log.Println("Starting Recent Damage Event Timestamps Cache Worker...")
 	ticker := time.NewTicker(5 * time.Second) // Gleiches Intervall wie der andere Worker
 
-	// Sofort einmal ausführen
+	// Execute once immediately
 	updateDamageEventTimestampsCache()
 
 	for {
@@ -124,8 +125,8 @@ func StartDamageEventTimestampsWorker(ctx context.Context) {
 
 // ★★★ NEU: Update-Funktion für den Damage-Event-Cache ★★★
 func updateDamageEventTimestampsCache() {
-	// Wir können die gleiche Logik zur Findung aktiver Server wiederverwenden.
-	// Ein Server, der Positionsdaten sendet, ist ein guter Indikator für allgemeine Aktivität.
+	// We can reuse the same logic for finding active servers.
+	// A server that sends position data is a good indicator of general activity.
 	var activeServers []models.Server
 	oneHourAgo := time.Now().UTC().Add(-1 * time.Hour)
 	database.DB.Model(&models.Server{}).
@@ -144,7 +145,7 @@ func updateDamageEventTimestampsCache() {
 			Pluck("DISTINCT FLOOR(UNIX_TIMESTAMP(event_timestamp))", &timestamps)
 
 		if len(timestamps) > 0 {
-			// Wir verwenden den neuen Cache-Schlüssel.
+			// We use the new cache key.
 			cacheKey := fmt.Sprintf(RecentDamageEventTimestampsCacheKey, server.ID.String())
 			// Haltbarkeit von 10 Minuten.
 			Set(cacheKey, timestamps, 10*time.Minute)

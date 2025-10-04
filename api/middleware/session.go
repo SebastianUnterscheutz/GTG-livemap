@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// SessionAuthMiddleware verifies that the user has an active session and sets user_id in context.
 func SessionAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session, err := handlers.CookieStore.Get(c.Request, "gtg-livemap-session")

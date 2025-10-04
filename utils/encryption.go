@@ -13,6 +13,7 @@ import (
 
 var aesKey []byte
 
+// InitEncryption loads and validates the AES encryption key from configuration.
 func InitEncryption() {
 	var err error
 	aesKey, err = hex.DecodeString(config.AppConfig.Encryption.AesKey)

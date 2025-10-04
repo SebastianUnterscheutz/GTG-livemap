@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetPublicServersHandler returns a list of all publicly visible servers.
 func GetPublicServersHandler(c *gin.Context) {
 	var publicServers []models.Server
 
@@ -219,6 +220,7 @@ func GetPositionsByTimeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetMapConfigsHandler returns all available map configurations.
 func GetMapConfigsHandler(c *gin.Context) {
 	var maps []models.MapConfig
 	if err := database.DB.Find(&maps).Error; err != nil {
@@ -375,6 +377,7 @@ func GetPlayerNamesHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, nameMap)
 }
 
+// GetDamageEventTimestampsHandler returns all event timestamps for a server's damage and kill events.
 func GetDamageEventTimestampsHandler(c *gin.Context) {
 	serverIDStr := c.Param("server_id")
 	serverID, _ := uuid.Parse(serverIDStr)
@@ -444,7 +447,7 @@ func GetPlayerEventTimestampsHandler(c *gin.Context) {
 	query := database.DB.Model(&models.DamageEvent{}).
 		Where("server_id = ? AND (victim_guid = ? OR killer_guid = ?)", serverID, guid, guid)
 
-	// 3. Zeitstempel-Filter sicher anwenden
+	// Apply timestamp filter safely
 	if fromStr := c.Query("from"); fromStr != "" {
 		fromTs, err := strconv.ParseInt(fromStr, 10, 64)
 		if err != nil {
@@ -479,6 +482,7 @@ func GetPlayerEventTimestampsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, unixTimestamps)
 }
 
+// GetLatestPositionsHandler returns the most recent position for each player on a server.
 func GetLatestPositionsHandler(c *gin.Context) {
 	// 1. Check parameters and access (remains the same)
 	serverIDStr := c.Param("server_id")
@@ -519,11 +523,12 @@ func GetLatestPositionsHandler(c *gin.Context) {
 		return
 	}
 
-	// 4. Cache Miss: Der Cache ist leer. Sende ein leeres Array.
+	// 4. Cache miss: The cache is empty. Send an empty array.
 	// The cache is automatically populated on the next POST request.
 	c.JSON(http.StatusOK, []PositionResponse{})
 }
 
+// GetDamageEventsInRangeHandler returns damage and kill events within a specified time range.
 func GetDamageEventsInRangeHandler(c *gin.Context) {
 	// 1. Read and validate parameters
 	serverIDStr := c.Param("server_id")
@@ -561,6 +566,7 @@ func GetDamageEventsInRangeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, eventsInWindow)
 }
 
+// GetDemoDataHandler returns demo data for the configured demo server and timestamp.
 func GetDemoDataHandler(c *gin.Context) {
 
 	// 1. Load settings from the DB

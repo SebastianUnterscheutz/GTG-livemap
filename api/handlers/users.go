@@ -14,8 +14,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// MeHandler returns the authenticated user's profile information.
 func MeHandler(c *gin.Context) {
-	userID, _ := c.Get("user_id") // Garantiert von der Middleware gesetzt
+	userID, _ := c.Get("user_id") // Set by middleware
 
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
@@ -71,8 +72,8 @@ func toProxyAvatarURL(discordURL string) string {
 	return "" // Fallback
 }
 
+// AdminSetServerLimitHandler allows admins to set the maximum number of servers a user can own.
 func AdminSetServerLimitHandler(c *gin.Context) {
-	// Benutzer-ID aus der URL holen
 	targetUserIDStr := c.Param("user_id")
 	targetUserID, err := strconv.ParseUint(targetUserIDStr, 10, 64)
 	if err != nil {
@@ -172,18 +173,18 @@ func AdminGetUserServersHandler(c *gin.Context) {
 		Shared: []ServerResponse{},
 	}
 
-	// 1. Eigene Server des Ziels holen
+	// Fetch owned servers of the target user
 	var ownedServers []models.Server
 	database.DB.Preload("MapConfig").Where("owner_id = ?", targetUserID).Order("name asc").Find(&ownedServers)
 	for _, s := range ownedServers {
 		response.Owned = append(response.Owned, ServerResponse{ID: s.ID, Name: s.Name, MapConfig: s.MapConfig})
 	}
 
-	// 2. Geteilte Server des Ziels holen
+	// Fetch shared servers of the target user
 	var sharedAccesses []models.ServerAccess
 	database.DB.Preload("Server.MapConfig").Where("user_id = ?", targetUserID).Find(&sharedAccesses)
 	for _, access := range sharedAccesses {
-		isOwner := false // Check if der Server nicht schon in der "owned"-Liste ist
+		isOwner := false // Check if the server is not already in der "owned"-Liste ist
 		for _, owned := range ownedServers {
 			if owned.ID == access.ServerID {
 				isOwner = true

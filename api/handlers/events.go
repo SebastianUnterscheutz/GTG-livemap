@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// PostDamageEventsHandler receives and stores damage/kill event data from game servers.
 func PostDamageEventsHandler(c *gin.Context) {
 	serverID_iface, exists := c.Get("server_id")
 	if !exists {

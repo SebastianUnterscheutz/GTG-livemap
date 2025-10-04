@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// AdminOnlyMiddleware restricts access to routes requiring admin privileges.
 func AdminOnlyMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID_iface, exists := c.Get("user_id")

@@ -74,10 +74,10 @@ func (Server) TableName() string {
 	return "servers"
 }
 
-// BeforeCreate ist ein GORM-Hook, der vor dem Erstellen eines neuen Datensatzes ausgeführt wird.
-// Wir nutzen ihn, um automatisch eine neue UUID für den Server zu generieren.
+// BeforeCreate is a GORM hook that is executed before creating a new record.
+// We use it to automatically generate a new UUID for the server.
 func (s *Server) BeforeCreate(tx *gorm.DB) (err error) {
-	// Überprüfe, ob die ID bereits gesetzt ist.
+	// Check if the ID is already set.
 	// Wenn nicht (der Standardfall bei Neuanlage), generiere eine neue.
 	if s.ID == uuid.Nil {
 		s.ID = uuid.New()
@@ -120,9 +120,9 @@ func (PlayerPosition) TableName() string {
 	return "player_positions"
 }
 
-// models/models.go (am Ende hinzufügen)
+// models/models.go (add at the end)
 
-// PositionPayload ist die äußere Hülle der JSON-Daten vom Spieleserver.
+// PositionPayload is the outer wrapper of the JSON data from the game server.
 // Diese PositionData-Struktur wird jetzt vom INNEREN JSON-String verwendet
 type PositionData struct {
 	Timestamp int64       `json:"timestamp"`
@@ -135,13 +135,13 @@ type PositionData struct {
 // Sie entspricht Ihrer `singlePlayerPayload`
 type PositionPayload struct {
 	PlayerGUID   string         `json:"playerGuid"`
-	PlayerName   string         `json:"playerName"` // Wir fügen das gleich hinzu für Namen
+	PlayerName   string         `json:"playerName"` // We add this for names
 	FactionName  string         `json:"factionName"`
 	FactionColor FactionColor   `json:"factionColor"`
 	Positions    []PositionData `json:"positions"`
 }
 
-// This structureen bleiben größtenteils gleich
+// These structures remain largely the same
 type FactionColor struct {
 	R float64 `json:"r"`
 	G float64 `json:"g"`
@@ -149,7 +149,7 @@ type FactionColor struct {
 }
 type Coordinates struct {
 	Absolute Vec3 `json:"absolute"`
-	Relative Vec3 `json:"relative"` // Fügen wir hinzu, basierend auf dem Prototyp
+	Relative Vec3 `json:"relative"` // Added based on the prototype
 }
 type Rotation struct {
 	X float64 `json:"x"`
@@ -232,7 +232,7 @@ func (PlayerIdentity) TableName() string {
 }
 
 type BadWord struct {
-	Word         string `gorm:"primaryKey;size:100"` // Das Wort selbst ist der Primärschlüssel
+	Word         string `gorm:"primaryKey;size:100"` // The word itself is the primary key
 	LanguageCode string `gorm:"size:5;index"`        // z.B. 'de', 'en', 'es', 'multi'
 }
 
@@ -240,11 +240,11 @@ func (BadWord) TableName() string {
 	return "bad_words"
 }
 
-// SystemSetting speichert allgemeine Key-Value-Einstellungen für die Anwendung.
+// SystemSetting stores general key-value settings for the application.
 type SystemSetting struct {
-	// Der Schlüssel der Einstellung, z.B. "demo_server_id"
+	// The key of the setting, e.g. "demo_server_id"
 	Key string `gorm:"column:key;primaryKey;size:100"`
-	// Der Wert der Einstellung, z.B. eine Server-ID oder ein Timestamp
+	// The value of the setting, e.g. a server ID or a timestamp
 	Value string `gorm:"size:255"`
 }
 

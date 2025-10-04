@@ -14,6 +14,7 @@ import (
 
 var validAvatarHash = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 
+// AvatarProxyHandler serves Discord user avatars through a proxy to avoid exposing Discord CDN URLs.
 func AvatarProxyHandler(c *gin.Context) {
 	userID := c.Param("user_id")
 	avatarHash := c.Param("avatar_hash")

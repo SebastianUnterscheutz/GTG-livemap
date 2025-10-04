@@ -21,6 +21,7 @@ import (
 
 var playerNameRegex = regexp.MustCompile(`"playerName"\s*:\s*"(.*?)"`)
 
+// updateLatestPositionsCache updates the cache with the most recent positions for each player.
 func updateLatestPositionsCache(serverID uuid.UUID, justSavedPositions []models.PlayerPosition) {
 	// Define the response structures that are stored in the cache.
 	type FactionResponse struct{
@@ -100,6 +101,7 @@ func updateLatestPositionsCache(serverID uuid.UUID, justSavedPositions []models.
 	}
 }
 
+// PostPositionsHandler receives and stores player position data from game servers.
 func PostPositionsHandler(c *gin.Context) {
 	var bodyBytes []byte
 	if c.Request.Body != nil {
@@ -217,6 +219,7 @@ func PostPositionsHandler(c *gin.Context) {
 	})
 }
 
+// processNameUpdates saves or updates player name mappings in the database.
 func processNameUpdates(identitiesToUpdate map[string]string) {
 	if len(identitiesToUpdate) == 0 {
 		return

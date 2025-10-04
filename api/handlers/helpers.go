@@ -42,6 +42,7 @@ func (fu *FlexUint) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// CheckServerAccess verifies if the current user has permission to access the specified server.
 func CheckServerAccess(c *gin.Context, serverID uuid.UUID) (gin.H, int) {
 
 	var server models.Server

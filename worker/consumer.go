@@ -18,6 +18,7 @@ type Job struct {
 	ServerID uuid.UUID `json:"server_id,omitempty"`
 }
 
+// StartJobConsumer processes background jobs from the Redis queue.
 func StartJobConsumer(ctx context.Context) {
 	log.Println("Job Consumer started. Waiting for jobs...")
 	for {

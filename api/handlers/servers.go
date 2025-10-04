@@ -23,6 +23,7 @@ import (
 
 var validServerNameRegex = regexp.MustCompile(`^[\w\s\[\]-]+$`)
 
+// GetUserServersHandler returns all servers owned by or shared with the authenticated user.
 func GetUserServersHandler(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	userIDUint64 := userID.(uint64)
@@ -168,6 +169,7 @@ func GetUserServersHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// CreateServerHandler creates a new server for the authenticated user.
 func CreateServerHandler(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
@@ -249,6 +251,7 @@ func CreateServerHandler(c *gin.Context) {
 	})
 }
 
+// UpdateServerHandler updates server settings including name, visibility, map, and log source configuration.
 func UpdateServerHandler(c *gin.Context) {
 	serverIDStr := c.Param("id")
 	serverID, _ := uuid.Parse(serverIDStr)
@@ -401,6 +404,7 @@ func DeleteServerHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "server deleted successfully"})
 }
 
+// RegenerateAPIKeyHandler generates a new API key for the server and invalidates the old one.
 func RegenerateAPIKeyHandler(c *gin.Context) {
 	serverIDStr := c.Param("id")
 	serverID, _ := uuid.Parse(serverIDStr)

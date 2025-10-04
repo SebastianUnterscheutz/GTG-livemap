@@ -12,6 +12,7 @@ import (
 	"github.com/ulule/limiter/v3/drivers/store/redis"
 )
 
+// GinLimitMiddleware applies rate limiting to HTTP requests based on client IP.
 func GinLimitMiddleware(limiter *limit.Limiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		context, err := limiter.Get(c.Request.Context(), c.ClientIP())
