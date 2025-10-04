@@ -23,7 +23,7 @@ func ServerOwnerOrAdminMiddleware() gin.HandlerFunc {
 		}
 		userID := userID_iface.(uint64)
 
-		// 1. Hole den Benutzer aus der DB, um seine Rolle zu prüfen
+		// 1. Fetch the user from the DB to check their role
 		var user models.User
 		if err := database.DB.First(&user, userID).Error; err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authenticated user not found in database"})

@@ -21,7 +21,7 @@ func InitEncryption() {
 	}
 }
 
-// Encrypt verschlüsselt Daten mit AES-GCM
+// Encrypt encrypts data with AES-GCM
 func Encrypt(data []byte) ([]byte, error) {
 	block, err := aes.NewCipher(aesKey)
 	if err != nil {
@@ -39,7 +39,7 @@ func Encrypt(data []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// Decrypt entschlüsselt Daten mit AES-GCM
+// Decrypt decrypts data with AES-GCM
 func Decrypt(data []byte) ([]byte, error) {
 	block, err := aes.NewCipher(aesKey)
 	if err != nil {

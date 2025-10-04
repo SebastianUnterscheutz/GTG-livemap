@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// UpdateMapConfigHandler aktualisiert die initialen Ansichts-Einstellungen einer Karte.
+// UpdateMapConfigHandler updates the initial view settings of a map.
 func UpdateMapConfigHandler(c *gin.Context) {
 	mapIDStr := c.Param("id")
 	mapID, _ := strconv.ParseUint(mapIDStr, 10, 64)
@@ -26,11 +26,11 @@ func UpdateMapConfigHandler(c *gin.Context) {
 		return
 	}
 
-	// Update-Befehl an die Datenbank
+	// Update command to the database
 	result := database.DB.Model(&models.MapConfig{}).Where("id = ?", mapID).Updates(map[string]interface{}{
-		"initial_view_lat":  &req.Lat,  // Pointer übergeben
-		"initial_view_lng":  &req.Lng,  // Pointer übergeben
-		"initial_view_zoom": &req.Zoom, // Pointer übergeben
+		"initial_view_lat":  &req.Lat,  // Pass pointer
+		"initial_view_lng":  &req.Lng,  // Pass pointer
+		"initial_view_zoom": &req.Zoom, // Pass pointer
 	})
 
 	if result.Error != nil {

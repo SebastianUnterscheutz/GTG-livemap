@@ -3,9 +3,9 @@ package middleware
 import (
 	"log"
 	"net/http"
-	"strconv" // Import für die String-Konvertierung
+	"strconv" // Import for string conversion
 
-	"gtglivemap/worker" // Wir brauchen den Redis-Client (RDB)
+	"gtglivemap/worker" // We need the Redis client (RDB)
 
 	"github.com/gin-gonic/gin"
 	limit "github.com/ulule/limiter/v3"

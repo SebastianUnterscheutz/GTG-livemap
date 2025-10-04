@@ -44,7 +44,7 @@ func InitAuth() {
 		ClientID:     cfg.Discord.ClientID,
 		ClientSecret: cfg.Discord.ClientSecret,
 		RedirectURL:  cfg.Discord.RedirectURI,
-		Scopes:       []string{"identify"}, // "identify" reicht für ID, Name und Avatar
+		Scopes:       []string{"identify"}, // "identify" is sufficient for ID, name and avatar
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://discord.com/api/oauth2/authorize",
 			TokenURL: "https://discord.com/api/oauth2/token",

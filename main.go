@@ -248,7 +248,7 @@ func main() {
 		moderation.InitBadWordFilter()
 	}
 
-	if *mode == "all" || *mode == "scheduler" { // Nur starten, wenn der Webserver läuft
+	if *mode == "all" || *mode == "scheduler" { // Only start if the web server is running
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

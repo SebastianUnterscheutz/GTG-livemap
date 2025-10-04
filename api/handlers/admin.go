@@ -45,7 +45,7 @@ func AdminSetDemoSettingsHandler(c *gin.Context) {
 		{Key: "demo_timestamp", Value: req.Timestamp},
 	}
 
-	// Upsert: Erstellt die Einträge, falls sie nicht existieren, oder aktualisiert sie.
+	// Upsert: Creates entries if they don't exist, or updates them.
 	if err := database.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "key"}},
 		DoUpdates: clause.AssignmentColumns([]string{"value"}),

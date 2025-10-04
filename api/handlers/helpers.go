@@ -17,25 +17,25 @@ import (
 
 type FlexUint uint
 
-// UnmarshalJSON implementiert die Logik, um flexibel zu parsen.
+// UnmarshalJSON implements the logic to parse flexibly.
 func (fu *FlexUint) UnmarshalJSON(data []byte) error {
-	// Zuerst versuchen, es als normale Zahl (z.B. 123) zu parsen.
+	// First try to parse it as a normal number (e.g. 123).
 	var num uint
 	if err := json.Unmarshal(data, &num); err == nil {
 		*fu = FlexUint(num)
 		return nil
 	}
 
-	// Wenn das fehlschlägt, könnte es ein String (z.B. "123") sein.
+	// If that fails, it might be a string (e.g. "123").
 	var str string
 	if err := json.Unmarshal(data, &str); err != nil {
-		return err // Weder eine gültige Zahl noch ein gültiger String.
+		return err // Neither a valid number nor a valid string.
 	}
 
-	// Es war ein String, also wandeln wir ihn in eine Zahl um.
+	// It was a string, so we convert it to a number.
 	parsed, err := strconv.ParseUint(str, 10, 32)
 	if err != nil {
-		return err // Der String enthält keine gültige Zahl.
+		return err // The string does not contain a valid number.
 	}
 
 	*fu = FlexUint(parsed)
@@ -87,14 +87,14 @@ func CheckServerAccess(c *gin.Context, serverID uuid.UUID) (gin.H, int) {
 		return nil, 0
 	}
 
-	// Wenn wir hier ankommen, hat der Benutzer keine Berechtigung.
+	// If we reach this point, the user has no authorization.
 	return gin.H{"error": "Access denied. You do not have permission to view this server."}, http.StatusForbidden
 }
 
 const proxyTilesPath = "/api/v1/tiles"
 
-// rewriteTilesURL parst die originalURL und baut die neue Proxy-URL zusammen.
-// Funktioniert für JEDE https-URL.
+// rewriteTilesURL parses the originalURL and constructs the new proxy URL.
+// Works for ANY https URL.
 func rewriteTilesURL(originalURL string) string {
 	if originalURL == "" {
 		return ""
@@ -103,7 +103,7 @@ func rewriteTilesURL(originalURL string) string {
 	parsedURL, err := url.Parse(originalURL)
 	if err != nil {
 		log.Printf("Warning: Could not parse TilesURL '%s': %v", originalURL, err)
-		return originalURL // Im Fehlerfall die originale URL zurückgeben
+		return originalURL // In case of error, return the original URL
 	}
 
 	newURL := proxyTilesPath + "/" + parsedURL.Host + parsedURL.Path
