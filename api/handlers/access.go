@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GetAccessListHandler gibt alle Benutzer zurück, die Zugriff auf einen Server haben.
+// GetAccessListHandler returns all users who have access to a server.
 func GetAccessListHandler(c *gin.Context) {
 	serverIDStr := c.Param("id")
 	serverID, _ := uuid.Parse(serverIDStr)
@@ -38,6 +38,7 @@ func GetAccessListHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GrantAccessHandler grants a user access to a server.
 func GrantAccessHandler(c *gin.Context) {
 	serverIDStr := c.Param("id")
 	serverID, _ := uuid.Parse(serverIDStr)
@@ -69,7 +70,7 @@ func GrantAccessHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while checking user."})
 		return
 	}
-	// ★★★ Ende des neuen Checks ★★★
+	// ★★★ End of new check ★★★
 
 	newAccess := models.ServerAccess{
 		UserID:   req.UserID,
@@ -83,7 +84,7 @@ func GrantAccessHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "access granted successfully"})
 }
 
-// RevokeAccessHandler entzieht einem Benutzer den Zugriff auf einen Server.
+// RevokeAccessHandler revokes a user's access to a server.
 func RevokeAccessHandler(c *gin.Context) {
 	serverIDStr := c.Param("id")
 	serverID, _ := uuid.Parse(serverIDStr)

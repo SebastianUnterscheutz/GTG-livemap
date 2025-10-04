@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// TestConnectionHandler versucht, eine Verbindung basierend auf den
-// übermittelten, unverschlüsselten Daten aufzubauen.
+// TestConnectionHandler attempts to establish a connection based on the
+// submitted, unencrypted data.
 func TestConnectionHandler(c *gin.Context) {
 
 	var req struct {
@@ -18,8 +18,8 @@ func TestConnectionHandler(c *gin.Context) {
 		FtpHost       string `json:"ftp_host"`
 		FtpPort       int    `json:"ftp_port"`
 		FtpUser       string `json:"ftp_user"`
-		Password      string `json:"password"` // Passwort kommt als Klartext
-		SshKey        string `json:"ssh_key"`  // Key kommt als Klartext
+		Password      string `json:"password"` // Password comes as plaintext
+		SshKey        string `json:"ssh_key"`  // Key comes as plaintext
 		UseFtps       bool   `json:"use_ftps"`
 	}
 
@@ -28,21 +28,21 @@ func TestConnectionHandler(c *gin.Context) {
 		return
 	}
 
-	// Erstelle ein temporäres Server-Objekt mit den unverschlüsselten Testdaten
-	// Wir verschlüsseln die Daten hier NICHT, da wir nur die Verbindung testen.
+	// Create a temporary server object with the unencrypted test data
+	// We do NOT encrypt the data here, as we are only testing the connection.
 	testServer := models.Server{
 		LogSourceType: req.LogSourceType,
 		FtpHost:       req.FtpHost,
 		FtpPort:       req.FtpPort,
 		FtpUser:       req.FtpUser,
 		UseFtps:       req.UseFtps,
-		// Wichtig: Wir übergeben die Klartext-Daten für den Test
-		// Diese werden als Byte-Slices für die Test-Funktion erwartet.
+		// Important: We pass the plaintext data for the test
+		// These are expected as byte slices for the test function.
 		EncryptedPassword: []byte(req.Password),
 		EncryptedSshKey:   []byte(req.SshKey),
 	}
 
-	// Wir rufen eine Test-Funktion auf, die eine echte Verbindung versucht.
+	// We call a test function that attempts a real connection.
 	err := logfetcher.TestConnection(testServer)
 
 	if err != nil {

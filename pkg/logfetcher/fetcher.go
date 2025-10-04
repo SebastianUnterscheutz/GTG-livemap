@@ -315,7 +315,7 @@ func downloadFtpFile(server models.Server, path string) (io.Reader, error) {
 	return &buf, nil
 }
 
-// ToSlash ersetzt alle Backslashes (\) in einem String durch Forward-Slashes (/).
+// ToSlash replaces all backslashes (\) in a string with forward slashes (/).
 func ToSlash(path string) string {
 	return strings.ReplaceAll(path, "\\", "/")
 }

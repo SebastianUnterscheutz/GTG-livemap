@@ -48,10 +48,10 @@ func GetPublicServersHandler(c *gin.Context) {
 
 const MaxTimestamps = 10801
 
-// GetTimestampsHandler liefert die Zeitstempel für die Timeline auf der Karte.
-// Wenn mehr als MaxTimestamps gefunden werden, wird die Datenmenge intelligent reduziert (Downsampling).
+// GetTimestampsHandler returns the timestamps for the timeline on the map.
+// If more than MaxTimestamps are found, the data is intelligently reduced (downsampling).
 func GetTimestampsHandler(c *gin.Context) {
-	// 1. Parameter auslesen und validieren
+	// 1. Read and validate parameters
 	serverIDStr := c.Param("server_id")
 	serverID, err := uuid.Parse(serverIDStr)
 	if err != nil {
@@ -83,7 +83,7 @@ func GetTimestampsHandler(c *gin.Context) {
 		threeHoursAgo := time.Now().UTC().Add(-3 * time.Hour)
 		query = query.Where("event_timestamp >= ?", threeHoursAgo)
 	} else {
-		// Bei Vorhandensein von FROM/TO, die Abfrage direkt auf die DB anwenden.
+		// If FROM/TO are present, apply the query directly to the DB.
 		fromTs, _ := strconv.ParseInt(fromStr, 10, 64)
 		toTs, _ := strconv.ParseInt(toStr, 10, 64)
 		query = query.Where("event_timestamp BETWEEN ? AND ?", time.Unix(fromTs, 0), time.Unix(toTs, 0))
@@ -124,7 +124,7 @@ func GetTimestampsHandler(c *gin.Context) {
 		}
 	}
 
-	// 5. Ergebnis in das gewünschte Format umwandeln und senden
+	// 5. Convert result to the desired format and send
 	unixTimestamps := make([]int64, len(timestamps))
 	for i, ts := range timestamps {
 		unixTimestamps[i] = ts.Unix()
@@ -155,7 +155,7 @@ func GetPositionsByTimeHandler(c *gin.Context) {
 		return
 	}
 
-	// Die Response-Struktur bleibt unverändert.
+	// The response structure remains unchanged.
 	type FactionResponse struct {
 		Name   string  `json:"name"`
 		ColorR float64 `json:"colorR"`
@@ -173,7 +173,7 @@ func GetPositionsByTimeHandler(c *gin.Context) {
 	}
 
 	cacheKey := fmt.Sprintf("positions:%s:%s", serverIDStr, timestampStr)
-	var cachedResponse []PositionResponse // Definiere die Zielstruktur
+	var cachedResponse []PositionResponse // Define the target structure
 
 	if err := cache.Get(cacheKey, &cachedResponse); err == nil {
 		c.JSON(http.StatusOK, cachedResponse)
@@ -185,13 +185,13 @@ func GetPositionsByTimeHandler(c *gin.Context) {
 
 	var positions []models.PlayerPosition
 
-	// Die Unterabfrage wird angepasst, um NUR Positionen im definierten Zeitfenster zu berücksichtigen.
+	// The subquery is adjusted to consider ONLY positions in the defined time window.
 	subQuery := database.DB.Model(&models.PlayerPosition{}).
 		Select("MAX(id)").
 		Where("server_id = ? AND event_timestamp BETWEEN ? AND ?", serverID, windowStart, targetTime).
 		Group("player_guid")
 
-	// Die Hauptabfrage bleibt gleich, sie holt die Daten für die in der subQuery gefundenen IDs.
+	// The main query remains the same, it fetches data for the IDs found in the subQuery.
 	err = database.DB.Preload("Faction").Where("id IN (?)", subQuery).Find(&positions).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database query failed for positions"})
@@ -233,7 +233,7 @@ func GetMapConfigsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, maps)
 }
 
-// GetDamageEventsByTimeHandler liefert Events und die zugehörigen Positionen von Killer und Victim.
+// GetDamageEventsByTimeHandler returns events and the associated positions of killer and victim.
 func GetDamageEventsByTimeHandler(c *gin.Context) {
 	serverIDStr := c.Param("server_id")
 	timestampStr := c.Param("timestamp")
@@ -247,18 +247,18 @@ func GetDamageEventsByTimeHandler(c *gin.Context) {
 	}
 
 	// Wir definieren ein kleines Zeitfenster um den Abfragezeitpunkt,
-	// um Events zu fangen, die knapp davor passiert sind.
+	// to catch events that happened shortly before.
 	timeWindowStart := targetTime.Add(-5 * time.Second) // 5 Sekunden Fenster
 
 	var eventsInWindow []models.DamageEvent
 	database.DB.Where("server_id = ? AND event_timestamp BETWEEN ? AND ?", serverID, timeWindowStart, targetTime).Find(&eventsInWindow)
 
 	if len(eventsInWindow) == 0 {
-		c.JSON(http.StatusOK, []interface{}{}) // Leeres Array zurückgeben
+		c.JSON(http.StatusOK, []interface{}{}) // Return empty array
 		return
 	}
 
-	// Dies wird die komplexe Antwortstruktur sein, die Ihr Frontend erwartet hat.
+	// This will be the complex response structure that your frontend expected.
 	type Position struct {
 		X float64 `json:"x"`
 		Y float64 `json:"y"`
@@ -272,10 +272,10 @@ func GetDamageEventsByTimeHandler(c *gin.Context) {
 
 	response := make([]EventResponse, 0)
 
-	// Helferfunktion, um die letzte Position eines Spielers zu finden.
+	// Helper function to find the last position of a player.
 	findLastPosition := func(guid string) *Position {
 		var pos models.PlayerPosition
-		// Finde den neuesten Positions-Eintrag für diesen Spieler VOR dem Event-Zeitpunkt
+		// Find the newest position entry for this player BEFORE the event timestamp
 		err := database.DB.Where("server_id = ? AND player_guid = ? AND event_timestamp <= ?", serverID, guid, targetTime).
 			Order("event_timestamp desc").First(&pos).Error
 		if err != nil {
@@ -288,7 +288,7 @@ func GetDamageEventsByTimeHandler(c *gin.Context) {
 		killerPos := findLastPosition(event.KillerGUID)
 		victimPos := findLastPosition(event.VictimGUID)
 
-		// Wir fügen das Event nur hinzu, wenn wir BEIDE Positionen finden konnten.
+		// We only add the event if we could find BOTH positions.
 		if killerPos != nil && victimPos != nil {
 			response = append(response, EventResponse{
 				Event:          event,
@@ -301,10 +301,10 @@ func GetDamageEventsByTimeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// GetHeatmapHandler gibt Positionsdaten im [lat, lng, intensity] Format zurück,
-// das von Leaflet.heat erwartet wird.
+// GetHeatmapHandler returns position data in [lat, lng, intensity] format,
+// as expected by Leaflet.heat.
 func GetHeatmapHandler(c *gin.Context) {
-	// Query-Parameter auslesen
+	// Read query parameters
 	serverIDStr := c.Query("server_id")
 	startStr := c.Query("start") // Unix-Timestamp
 	endStr := c.Query("end")     // Unix-Timestamp
@@ -327,8 +327,8 @@ func GetHeatmapHandler(c *gin.Context) {
 	}
 
 	var positions []models.PlayerPosition
-	// Hole alle Positionsdaten im angegebenen Zeitfenster für den Server.
-	// Wir wählen nur die Spalten aus, die wir brauchen, um die Abfrage schneller zu machen.
+	// Fetch all position data in the specified time window for the server.
+	// We select only the columns we need to make the query faster.
 	err := database.DB.Select("absolute_pos_z", "absolute_pos_x").
 		Where("server_id = ? AND event_timestamp BETWEEN ? AND ?", serverID, startTime, endTime).
 		Find(&positions).Error
@@ -338,10 +338,10 @@ func GetHeatmapHandler(c *gin.Context) {
 		return
 	}
 
-	// Das Format, das Leaflet.heat benötigt: [lat, lng, intensity]
+	// The format that Leaflet.heat requires: [lat, lng, intensity]
 	// Lat in Leaflet's CRS.Simple ist unsere Z-Koordinate.
 	// Lng ist unsere X-Koordinate.
-	// Intensity ist vorerst immer 1.0 (jeder Punkt trägt gleich viel bei).
+	// Intensity is always 1.0 for now (each point contributes equally).
 	heatmapData := make([][3]float64, len(positions))
 	for i, pos := range positions {
 		heatmapData[i] = [3]float64{pos.AbsolutePosZ, pos.AbsolutePosX, 1.0}
@@ -350,7 +350,7 @@ func GetHeatmapHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, heatmapData)
 }
 
-// GetPlayerNamesHandler nimmt eine Liste von GUIDs und gibt eine Map von GUID->Name zurück.
+// GetPlayerNamesHandler takes a list of GUIDs and returns a map of GUID->Name.
 func GetPlayerNamesHandler(c *gin.Context) {
 	var req struct {
 		GUIDs []string `json:"guids"`
@@ -395,7 +395,7 @@ func GetDamageEventTimestampsHandler(c *gin.Context) {
 
 	query := database.DB.Model(&models.DamageEvent{}).Where("server_id = ?", serverID)
 
-	// Unterstützung für den Zeitfilter (wichtig!)
+	// Support for the time filter (important!)
 	if fromStr := c.Query("from"); fromStr != "" {
 		fromTs, _ := strconv.ParseInt(fromStr, 10, 64)
 		query = query.Where("event_timestamp >= ?", time.Unix(fromTs, 0))
@@ -419,7 +419,7 @@ func GetDamageEventTimestampsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, unixTimestamps)
 }
 
-// GetPlayerEventTimestampsHandler holt alle Zeitstempel von Kills/Toden für einen spezifischen Spieler.
+// GetPlayerEventTimestampsHandler fetches all timestamps of kills/deaths for a specific player.
 func GetPlayerEventTimestampsHandler(c *gin.Context) {
 
 	serverIDStr := c.Param("server_id")
@@ -464,7 +464,7 @@ func GetPlayerEventTimestampsHandler(c *gin.Context) {
 	}
 
 	var timestamps []time.Time
-	// Wir verwenden Pluck, um nur die eine Spalte effizient zu laden.
+	// We use Pluck to efficiently load only the one column.
 	if err := query.Order("event_timestamp asc").Pluck("event_timestamp", &timestamps).Error; err != nil {
 		log.Printf("ERROR (ServerID %s, GUID %s): Database query failed for player event timestamps: %v", serverID, guid, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database query failed while fetching event timestamps."})
@@ -480,7 +480,7 @@ func GetPlayerEventTimestampsHandler(c *gin.Context) {
 }
 
 func GetLatestPositionsHandler(c *gin.Context) {
-	// 1. Parameter und Zugriff prüfen (bleibt gleich)
+	// 1. Check parameters and access (remains the same)
 	serverIDStr := c.Param("server_id")
 	serverID, err := uuid.Parse(serverIDStr)
 	if err != nil {
@@ -492,7 +492,7 @@ func GetLatestPositionsHandler(c *gin.Context) {
 		return
 	}
 
-	// 2. Definiere die Response-Struktur, die aus dem Cache erwartet wird
+	// 2. Define the response structure expected from the cache
 	type FactionResponse struct {
 		Name   string  `json:"name"`
 		ColorR float64 `json:"colorR"`
@@ -512,20 +512,20 @@ func GetLatestPositionsHandler(c *gin.Context) {
 	cacheKey := fmt.Sprintf("latest_positions:%s", serverIDStr)
 	var cachedResponse []PositionResponse
 
-	// 3. Versuche, die Daten aus dem Cache abzurufen.
+	// 3. Try to retrieve data from the cache.
 	if err := cache.Get(cacheKey, &cachedResponse); err == nil {
-		// Cache-Treffer! Sende die gecachten Daten.
+		// Cache hit! Send the cached data.
 		c.JSON(http.StatusOK, cachedResponse)
 		return
 	}
 
 	// 4. Cache Miss: Der Cache ist leer. Sende ein leeres Array.
-	// Der Cache wird beim nächsten POST-Request automatisch gefüllt.
+	// The cache is automatically populated on the next POST request.
 	c.JSON(http.StatusOK, []PositionResponse{})
 }
 
 func GetDamageEventsInRangeHandler(c *gin.Context) {
-	// 1. Parameter auslesen und validieren
+	// 1. Read and validate parameters
 	serverIDStr := c.Param("server_id")
 	serverID, err := uuid.Parse(serverIDStr)
 	if err != nil {
@@ -543,7 +543,7 @@ func GetDamageEventsInRangeHandler(c *gin.Context) {
 	startTime := time.Unix(fromTs, 0)
 	endTime := time.Unix(toTs, 0)
 
-	// 2. Zugriffsberechtigung prüfen
+	// 2. Check access authorization
 	if errResponse, statusCode := CheckServerAccess(c, serverID); errResponse != nil {
 		c.JSON(statusCode, errResponse)
 		return
@@ -557,13 +557,13 @@ func GetDamageEventsInRangeHandler(c *gin.Context) {
 		return
 	}
 
-	// 4. Rohe Daten direkt zurücksenden
+	// 4. Return raw data directly
 	c.JSON(http.StatusOK, eventsInWindow)
 }
 
 func GetDemoDataHandler(c *gin.Context) {
 
-	// 1. Lade die Einstellungen aus der DB
+	// 1. Load settings from the DB
 	var demoServerIDSetting, demoTimestampSetting models.SystemSetting
 	database.DB.First(&demoServerIDSetting, "`key` = ?", "demo_server_id")
 	database.DB.First(&demoTimestampSetting, "`key` = ?", "demo_timestamp")
@@ -577,7 +577,7 @@ func GetDemoDataHandler(c *gin.Context) {
 	timestamp, _ := strconv.ParseInt(demoTimestampSetting.Value, 10, 64)
 	targetTime := time.Unix(timestamp, 0)
 
-	// 2. Lade die Kartenkonfiguration des Servers
+	// 2. Load the map configuration of the server
 	var server models.Server
 	if err := database.DB.Preload("MapConfig").First(&server, "id = ?", serverID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Configured demo server not found."})
@@ -617,8 +617,8 @@ func GetDemoDataHandler(c *gin.Context) {
 
 	server.MapConfig.TilesURL = rewriteTilesURL(server.MapConfig.TilesURL)
 
-	// 4. Filtere in Go, um nur die wirklich letzte Position pro Spieler zu behalten.
-	// Dies ist eine Vereinfachung, die gut genug für die Demo ist.
+	// 4. Filter in Go to keep only the truly last position per player.
+	// This is a simplification that is good enough for the demo.
 	cache.Set(cacheKey, positions, 24*time.Hour)
 	c.JSON(http.StatusOK, gin.H{
 		"map_config": server.MapConfig,
