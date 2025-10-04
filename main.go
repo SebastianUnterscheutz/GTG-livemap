@@ -27,6 +27,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// setup initializes shared components including config, Redis, database, and authentication.
 func setup() {
 	log.Println("--- Initializing shared components ---")
 	config.LoadConfig()
@@ -45,6 +46,7 @@ func setup() {
 	log.Println("--- Shared components initialized ---")
 }
 
+// startWebServer initializes and runs the HTTP server with all API routes.
 func startWebServer(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	log.Println("--- Starting Web Server ---")
@@ -196,6 +198,7 @@ func startWebServer(ctx context.Context, wg *sync.WaitGroup) {
 	log.Println("Web server exited gracefully")
 }
 
+// startScheduler initializes and runs the job scheduler for background tasks.
 func startScheduler(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	log.Println("--- Starting Scheduler (Producer) ---")
@@ -206,6 +209,7 @@ func startScheduler(ctx context.Context, wg *sync.WaitGroup) {
 	log.Println("Scheduler exited gracefully")
 }
 
+// startJobConsumer runs the background worker that processes queued jobs.
 func startJobConsumer(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 	log.Println("--- Starting Job Consumer (Worker) ---")
@@ -248,7 +252,7 @@ func main() {
 		moderation.InitBadWordFilter()
 	}
 
-	if *mode == "all" || *mode == "scheduler" { // Nur starten, wenn der Webserver läuft
+	if *mode == "all" || *mode == "scheduler" { // Only start if the web server is running
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

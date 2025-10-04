@@ -26,6 +26,7 @@ var (
 	CookieStore sessions.Store
 )
 
+// InitAuth initializes the Discord OAuth2 configuration and Redis-backed session store.
 func InitAuth() {
 	cfg := config.AppConfig
 
@@ -44,7 +45,7 @@ func InitAuth() {
 		ClientID:     cfg.Discord.ClientID,
 		ClientSecret: cfg.Discord.ClientSecret,
 		RedirectURL:  cfg.Discord.RedirectURI,
-		Scopes:       []string{"identify"}, // "identify" reicht für ID, Name und Avatar
+		Scopes:       []string{"identify"}, // "identify" is sufficient for ID, name and avatar
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://discord.com/api/oauth2/authorize",
 			TokenURL: "https://discord.com/api/oauth2/token",
@@ -58,11 +59,13 @@ func InitAuth() {
 
 }
 
+// HandleDiscordLogin redirects the user to Discord's OAuth2 authorization page.
 func HandleDiscordLogin(c *gin.Context) {
 	url := oauthConf.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
+// HandleDiscordCallback processes the OAuth2 callback from Discord and creates or updates the user session.
 func HandleDiscordCallback(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
@@ -123,6 +126,7 @@ func HandleDiscordCallback(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, "/")
 }
 
+// HandleLogout destroys the user's session and redirects to the home page.
 func HandleLogout(c *gin.Context) {
 	session, _ := CookieStore.Get(c.Request, "gtg-livemap-session")
 	session.Values["user_id"] = 0

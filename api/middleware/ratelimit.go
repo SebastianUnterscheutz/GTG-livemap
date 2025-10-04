@@ -3,15 +3,16 @@ package middleware
 import (
 	"log"
 	"net/http"
-	"strconv" // Import für die String-Konvertierung
+	"strconv" // Import for string conversion
 
-	"gtglivemap/worker" // Wir brauchen den Redis-Client (RDB)
+	"gtglivemap/worker" // We need the Redis client (RDB)
 
 	"github.com/gin-gonic/gin"
 	limit "github.com/ulule/limiter/v3"
 	"github.com/ulule/limiter/v3/drivers/store/redis"
 )
 
+// GinLimitMiddleware applies rate limiting to HTTP requests based on client IP.
 func GinLimitMiddleware(limiter *limit.Limiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		context, err := limiter.Get(c.Request.Context(), c.ClientIP())
@@ -34,7 +35,7 @@ func GinLimitMiddleware(limiter *limit.Limiter) gin.HandlerFunc {
 	}
 }
 
-// CreateRateLimiter erstellt eine neue Rate-Limiter-Instanz.
+// CreateRateLimiter creates a new rate limiter instance.
 func CreateRateLimiter(formattedRate string) (*limit.Limiter, error) {
 	rate, err := limit.NewRateFromFormatted(formattedRate)
 	if err != nil {

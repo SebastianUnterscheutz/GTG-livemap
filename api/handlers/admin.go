@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// AdminGetDemoSettingsHandler holt die aktuellen Demo-Einstellungen.
+// AdminGetDemoSettingsHandler retrieves the current demo settings.
 func AdminGetDemoSettingsHandler(c *gin.Context) {
 	var demoServerID, demoTimestamp models.SystemSetting
 	database.DB.First(&demoServerID, "key = ?", "demo_server_id")
@@ -45,7 +45,7 @@ func AdminSetDemoSettingsHandler(c *gin.Context) {
 		{Key: "demo_timestamp", Value: req.Timestamp},
 	}
 
-	// Upsert: Erstellt die Einträge, falls sie nicht existieren, oder aktualisiert sie.
+	// Upsert: Creates entries if they don't exist, or updates them.
 	if err := database.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "key"}},
 		DoUpdates: clause.AssignmentColumns([]string{"value"}),
@@ -57,6 +57,7 @@ func AdminSetDemoSettingsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Demo settings updated successfully."})
 }
 
+// AdminUpdateMapCalibrationHandler updates map calibration settings for coordinate transformations.
 func AdminUpdateMapCalibrationHandler(c *gin.Context) {
 	mapIDStr := c.Param("id")
 	mapID, _ := strconv.ParseUint(mapIDStr, 10, 64)

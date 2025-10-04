@@ -14,8 +14,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// MeHandler returns the authenticated user's profile information.
 func MeHandler(c *gin.Context) {
-	userID, _ := c.Get("user_id") // Garantiert von der Middleware gesetzt
+	userID, _ := c.Get("user_id") // Set by middleware
 
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
@@ -31,9 +32,9 @@ func MeHandler(c *gin.Context) {
 	})
 }
 
-// SearchUsersHandler sucht nach Benutzern anhand eines Namens-Präfixes.
+// SearchUsersHandler searches for users based on a name prefix.
 func SearchUsersHandler(c *gin.Context) {
-	// Nur eingeloggte Benutzer dürfen andere Benutzer suchen.
+	// Only logged-in users are allowed to search for other users.
 	searchQuery := c.Query("username")
 	if len(searchQuery) < 3 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "search query must be at least 3 characters long"})
@@ -44,7 +45,7 @@ func SearchUsersHandler(c *gin.Context) {
 	// Suche nach Benutzern, deren Name mit dem Query beginnt (LIKE 'name%')
 	database.DB.Where("username LIKE ?", searchQuery+"%").Limit(10).Find(&users)
 
-	// Sende nur sichere Daten zurück
+	// Send only safe data
 	type UserSearchResponse struct {
 		ID       uint64 `json:"id,string"`
 		Username string `json:"username"`
@@ -60,7 +61,7 @@ func SearchUsersHandler(c *gin.Context) {
 var discordAvatarURLRegex = regexp.MustCompile(`.*/avatars/(\d+)/([a-zA-Z0-9_]+)\.png.*`)
 
 // toProxyAvatarURL konvertiert eine volle Discord-URL in unsere lokale Proxy-URL.
-// Wenn die URL nicht passt, gibt sie einen leeren String zurück.
+// If the URL doesn't match, it returns an empty string.
 func toProxyAvatarURL(discordURL string) string {
 	matches := discordAvatarURLRegex.FindStringSubmatch(discordURL)
 	if len(matches) == 3 {
@@ -71,8 +72,8 @@ func toProxyAvatarURL(discordURL string) string {
 	return "" // Fallback
 }
 
+// AdminSetServerLimitHandler allows admins to set the maximum number of servers a user can own.
 func AdminSetServerLimitHandler(c *gin.Context) {
-	// Benutzer-ID aus der URL holen
 	targetUserIDStr := c.Param("user_id")
 	targetUserID, err := strconv.ParseUint(targetUserIDStr, 10, 64)
 	if err != nil {
@@ -105,7 +106,7 @@ func AdminSetServerLimitHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully set server limit for user %d to %d.", targetUserID, req.MaxServers)})
 }
 
-// AdminGetAllUsersHandler holt alle Benutzer mit Zusatzinformationen für das Admin-Dashboard.
+// AdminGetAllUsersHandler fetches all users with additional information for the admin dashboard.
 func AdminGetAllUsersHandler(c *gin.Context) {
 	var users []models.User
 	database.DB.Find(&users)
@@ -122,7 +123,7 @@ func AdminGetAllUsersHandler(c *gin.Context) {
 		serverCounts[result.OwnerID] = result.Count
 	}
 
-	// Die Antwortstruktur, die alle benötigten Daten enthält
+	// The response structure that contains all needed data
 	type AdminUserResponse struct {
 		ID               uint64 `json:"id,string"`
 		Username         string `json:"username"`
@@ -137,17 +138,17 @@ func AdminGetAllUsersHandler(c *gin.Context) {
 		response[i] = AdminUserResponse{
 			ID:               u.ID,
 			Username:         u.Username,
-			Avatar:           toProxyAvatarURL(u.Avatar), // Wiederverwendung der Proxy-Funktion
+			Avatar:           toProxyAvatarURL(u.Avatar),
 			AccountType:      u.AccountType,
 			MaxServers:       u.MaxServers,
-			OwnedServerCount: serverCounts[u.ID], // Hole die gezählte Anzahl
+			OwnedServerCount: serverCounts[u.ID],
 		}
 	}
 
 	c.JSON(http.StatusOK, response)
 }
 
-// AdminGetUserServersHandler holt alle Server (eigene und geteilte) eines bestimmten Benutzers.
+// AdminGetUserServersHandler fetches all servers (owned and shared) of a specific user.
 func AdminGetUserServersHandler(c *gin.Context) {
 	targetUserIDStr := c.Param("user_id")
 	targetUserID, err := strconv.ParseUint(targetUserIDStr, 10, 64)
@@ -156,7 +157,7 @@ func AdminGetUserServersHandler(c *gin.Context) {
 		return
 	}
 
-	// Diese Strukturen sind aus GetUserServersHandler bekannt
+	// This structureen sind aus GetUserServersHandler bekannt
 	type ServerResponse struct {
 		ID        uuid.UUID        `json:"id"`
 		Name      string           `json:"name"`
@@ -172,18 +173,18 @@ func AdminGetUserServersHandler(c *gin.Context) {
 		Shared: []ServerResponse{},
 	}
 
-	// 1. Eigene Server des Ziels holen
+	// Fetch owned servers of the target user
 	var ownedServers []models.Server
 	database.DB.Preload("MapConfig").Where("owner_id = ?", targetUserID).Order("name asc").Find(&ownedServers)
 	for _, s := range ownedServers {
 		response.Owned = append(response.Owned, ServerResponse{ID: s.ID, Name: s.Name, MapConfig: s.MapConfig})
 	}
 
-	// 2. Geteilte Server des Ziels holen
+	// Fetch shared servers of the target user
 	var sharedAccesses []models.ServerAccess
 	database.DB.Preload("Server.MapConfig").Where("user_id = ?", targetUserID).Find(&sharedAccesses)
 	for _, access := range sharedAccesses {
-		isOwner := false // Prüfen, ob der Server nicht schon in der "owned"-Liste ist
+		isOwner := false // Check if the server is not already in der "owned"-Liste ist
 		for _, owned := range ownedServers {
 			if owned.ID == access.ServerID {
 				isOwner = true

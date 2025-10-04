@@ -46,6 +46,7 @@ var LanguageMap = map[string]string{
 	"tlh": "https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/tlh", // Klingon
 }
 
+// SeedBadWords fetches and populates the database with inappropriate words for content moderation.
 func SeedBadWords() {
 	log.Println("Starting to seed bad words from public repository...")
 	totalWordsAdded := 0

@@ -21,23 +21,20 @@ var (
 	CookieStore *sessions.CookieStore // WAR `cookieStore`
 )
 
-// apiKeyCacheEntry speichert alle benötigten IDs für einen Server.
+// apiKeyCacheEntry stores all needed IDs for a server.
 type apiKeyCacheEntry struct {
 	serverID    uuid.UUID
-	mapConfigID uint // ★★★ HINZUGEFÜGT ★★★
+	mapConfigID uint
 	createdAt   time.Time
 }
 
 var (
-	// apiKeyCache speichert [roherAPIKey] -> cacheEintrag
 	apiKeyCache = make(map[string]apiKeyCacheEntry)
-	// apiKeyMutex schützt den Cache vor gleichzeitigem Lesen/Schreiben.
 	apiKeyMutex sync.RWMutex
-	// cacheTTL gibt an, wie lange ein Schlüssel im Cache gültig ist (z.B. 5 Minuten).
-	cacheTTL = 5 * time.Minute
+	cacheTTL    = 5 * time.Minute
 )
 
-// APIKeyAuthMiddleware verwendet einen In-Memory-Cache, um teure bcrypt-Überprüfungen zu minimieren.
+// APIKeyAuthMiddleware uses an in-memory cache to minimize expensive bcrypt checks.
 func APIKeyAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		incomingAPIKey := c.GetHeader("X-API-KEY")
@@ -58,9 +55,8 @@ func APIKeyAuthMiddleware() gin.HandlerFunc {
 		apiKeyMutex.RUnlock()
 
 		if found && time.Since(entry.createdAt) < cacheTTL {
-			// ★ CACHE-TREFFER! ★
 			c.Set("server_id", entry.serverID)
-			c.Set("map_config_id", entry.mapConfigID) // ★★★ HINZUGEFÜGT ★★★
+			c.Set("map_config_id", entry.mapConfigID)
 			c.Next()
 			return
 		}
@@ -90,14 +86,12 @@ func APIKeyAuthMiddleware() gin.HandlerFunc {
 		apiKeyMutex.Lock()
 		apiKeyCache[incomingAPIKey] = apiKeyCacheEntry{
 			serverID:    matchedServer.ID,
-			mapConfigID: matchedServer.MapConfigID, // ★★★ HINZUGEFÜGT ★★★
+			mapConfigID: matchedServer.MapConfigID,
 			createdAt:   time.Now(),
 		}
 		apiKeyMutex.Unlock()
 
 		log.Printf("API Key for server %s (map %d) validated and cached.", matchedServer.ID, matchedServer.MapConfigID)
-
-		// Setze beide Werte im Context für den aktuellen Request.
 		c.Set("server_id", matchedServer.ID)
 		c.Set("map_config_id", matchedServer.MapConfigID)
 		c.Next()

@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// APIGetCurrentMapHandler gibt die aktuelle Kartenkonfiguration des Servers zurück.
+// APIGetCurrentMapHandler returns the current map configuration of the server.
 func APIGetCurrentMapHandler(c *gin.Context) {
 	serverID_iface, _ := c.Get("server_id")
 	serverID := serverID_iface.(uuid.UUID)
@@ -27,7 +27,7 @@ func APIGetCurrentMapHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, server.MapConfig)
 }
 
-// APISetCurrentMapHandler ändert die Karte für den aktuellen Server.
+// APISetCurrentMapHandler changes the map for the current server.
 func APISetCurrentMapHandler(c *gin.Context) {
 	serverID_iface, _ := c.Get("server_id")
 	serverID := serverID_iface.(uuid.UUID)
@@ -40,7 +40,7 @@ func APISetCurrentMapHandler(c *gin.Context) {
 		return
 	}
 
-	// Validierung: Prüfen, ob die Map-ID überhaupt existiert.
+	// Validation: Check if the map ID even exists.
 	var mapConfig models.MapConfig
 	if err := database.DB.First(&mapConfig, req.MapID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -51,7 +51,7 @@ func APISetCurrentMapHandler(c *gin.Context) {
 		return
 	}
 
-	// Update des Servers
+	// Update the server
 	result := database.DB.Model(&models.Server{}).Where("id = ?", serverID).Update("map_config_id", req.MapID)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update server map"})

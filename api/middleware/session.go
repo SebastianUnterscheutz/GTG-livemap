@@ -2,12 +2,13 @@
 package middleware
 
 import (
-	"gtglivemap/api/handlers" // Wir brauchen Zugriff auf den CookieStore aus auth.go
+	"gtglivemap/api/handlers" // We need access to the CookieStore from auth.go
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
+// SessionAuthMiddleware verifies that the user has an active session and sets user_id in context.
 func SessionAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session, err := handlers.CookieStore.Get(c.Request, "gtg-livemap-session")

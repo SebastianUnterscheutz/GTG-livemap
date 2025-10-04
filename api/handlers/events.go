@@ -12,10 +12,11 @@ import (
 	"github.com/google/uuid"
 )
 
+// PostDamageEventsHandler receives and stores damage/kill event data from game servers.
 func PostDamageEventsHandler(c *gin.Context) {
 	serverID_iface, exists := c.Get("server_id")
 	if !exists {
-		// Dieser Fall sollte durch die Middleware eigentlich nie eintreten
+		// This case should never occur due to the middleware
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "server_id context is missing"})
 		return
 	}
