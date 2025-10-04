@@ -21,7 +21,6 @@ import (
 
 var playerNameRegex = regexp.MustCompile(`"playerName"\s*:\s*"(.*?)"`)
 
-// updateLatestPositionsCache akzeptiert die gerade gespeicherten Positionen direkt, um DB-Lesevorgänge zu vermeiden.
 func updateLatestPositionsCache(serverID uuid.UUID, justSavedPositions []models.PlayerPosition) {
 	// Definiere die Response-Strukturen, die im Cache gespeichert werden.
 	type FactionResponse struct {
@@ -40,7 +39,6 @@ func updateLatestPositionsCache(serverID uuid.UUID, justSavedPositions []models.
 		Faction        FactionResponse `json:"faction"`
 	}
 
-	// 1. Filtere die übergebenen Positionen nach dem Aktivitätsfenster.
 	nowUTC := time.Now().UTC()
 	const activityWindow = 15 * time.Second
 	windowStart := nowUTC.Add(-activityWindow)
@@ -51,11 +49,10 @@ func updateLatestPositionsCache(serverID uuid.UUID, justSavedPositions []models.
 	for _, pos := range justSavedPositions {
 		if !pos.EventTimestamp.Before(windowStart) {
 			activePositions = append(activePositions, pos)
-			factionIDsToLoad[pos.FactionID] = true // Sammle die Faction IDs, die wir nachladen müssen
+			factionIDsToLoad[pos.FactionID] = true
 		}
 	}
 
-	// Wenn keine Positionen im Aktivitätsfenster sind, setzen wir einen leeren Cache.
 	if len(activePositions) == 0 {
 		cacheKey := fmt.Sprintf("latest_positions:%s", serverID.String())
 		if err := cache.Set(cacheKey, []PositionResponse{}, 1*time.Minute); err != nil {
@@ -64,7 +61,6 @@ func updateLatestPositionsCache(serverID uuid.UUID, justSavedPositions []models.
 		return
 	}
 
-	// 2. Lade die benötigten Fraktionsdaten für die aktiven Positionen in einer einzigen, effizienten Abfrage.
 	var factionIDs []uint
 	for id := range factionIDsToLoad {
 		factionIDs = append(factionIDs, id)
@@ -78,7 +74,6 @@ func updateLatestPositionsCache(serverID uuid.UUID, justSavedPositions []models.
 		}
 	}
 
-	// 3. Baue die finale Response zusammen, die im Cache gespeichert wird.
 	response := make([]PositionResponse, len(activePositions))
 	for i, pos := range activePositions {
 		faction := factions[pos.FactionID]
@@ -222,7 +217,6 @@ func PostPositionsHandler(c *gin.Context) {
 	})
 }
 
-// ★★★ NEUE ASYNCHRONE FUNKTION FÜR NAMEN-UPDATES ★★★
 func processNameUpdates(identitiesToUpdate map[string]string) {
 	if len(identitiesToUpdate) == 0 {
 		return
