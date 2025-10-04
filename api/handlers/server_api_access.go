@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// APIGetAccessListHandler listet die Discord-User-IDs auf, die Zugriff auf den Server haben.
+// APIGetAccessListHandler lists the Discord user IDs that have access to the server.
 func APIGetAccessListHandler(c *gin.Context) {
 	serverID_iface, _ := c.Get("server_id")
 	serverID := serverID_iface.(uuid.UUID)
@@ -20,11 +20,11 @@ func APIGetAccessListHandler(c *gin.Context) {
 	var userIDs []uint64
 	database.DB.Model(&models.ServerAccess{}).Where("server_id = ?", serverID).Pluck("user_id", &userIDs)
 
-	// Wir geben bewusst nur die IDs zurück, da wir für nicht existierende User keine Namen/Avatare haben.
+	// We deliberately return only the IDs, as we don't have names/avatars for non-existent users.
 	c.JSON(http.StatusOK, userIDs)
 }
 
-// APIGrantAccessHandler gewährt einem Benutzer Zugriff. Der Benutzer muss NICHT existieren.
+// APIGrantAccessHandler grants a user access. The user does NOT need to exist.
 func APIGrantAccessHandler(c *gin.Context) {
 	serverID_iface, _ := c.Get("server_id")
 	serverID := serverID_iface.(uuid.UUID)
@@ -75,7 +75,7 @@ func APIGrantAccessHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Access granted successfully. User created if they did not exist."})
 }
 
-// APIRevokeAccessHandler entzieht einem Benutzer den Zugriff.
+// APIRevokeAccessHandler revokes a user's access.
 func APIRevokeAccessHandler(c *gin.Context) {
 	serverID_iface, _ := c.Get("server_id")
 	serverID := serverID_iface.(uuid.UUID)
@@ -87,7 +87,7 @@ func APIRevokeAccessHandler(c *gin.Context) {
 		return
 	}
 
-	// Sicherheitshalber den Owner vor dem Löschen schützen.
+	// As a safety measure, protect the owner from deletion.
 	var server models.Server
 	database.DB.First(&server, "id = ?", serverID)
 	if userIDToRevoke == server.OwnerID {

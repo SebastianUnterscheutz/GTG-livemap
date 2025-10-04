@@ -2,7 +2,7 @@
 package middleware
 
 import (
-	"gtglivemap/api/handlers" // Wir brauchen Zugriff auf den CookieStore aus auth.go
+	"gtglivemap/api/handlers" // We need access to the CookieStore from auth.go
 	"net/http"
 
 	"github.com/gin-gonic/gin"

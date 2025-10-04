@@ -30,8 +30,8 @@ func StartJobConsumer(ctx context.Context) {
 			result, err := RDB.BRPop(ctx, 1*time.Second, JobQueueName).Result()
 
 			if err == redis.Nil {
-				// Das ist kein Fehler, sondern ein normaler Timeout. Es war einfach kein Job da.
-				// Die Schleife beginnt von vorn.
+				// This is not an error, but a normal timeout. There was simply no job.
+				// The loop starts over.
 				continue
 			}
 			if err != nil {

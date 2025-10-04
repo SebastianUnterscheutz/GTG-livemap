@@ -22,8 +22,8 @@ import (
 var playerNameRegex = regexp.MustCompile(`"playerName"\s*:\s*"(.*?)"`)
 
 func updateLatestPositionsCache(serverID uuid.UUID, justSavedPositions []models.PlayerPosition) {
-	// Definiere die Response-Strukturen, die im Cache gespeichert werden.
-	type FactionResponse struct {
+	// Define the response structures that are stored in the cache.
+	type FactionResponse struct{
 		Name   string  `json:"name"`
 		ColorR float64 `json:"colorR"`
 		ColorG float64 `json:"colorG"`
@@ -93,7 +93,7 @@ func updateLatestPositionsCache(serverID uuid.UUID, justSavedPositions []models.
 		}
 	}
 
-	// 4. Speichere das Ergebnis im Cache.
+	// 4. Save the result in the cache.
 	cacheKey := fmt.Sprintf("latest_positions:%s", serverID.String())
 	if err := cache.Set(cacheKey, response, 1*time.Minute); err != nil {
 		log.Printf("WARN (Cache Update): Could not set latest_positions cache for server %s: %v", serverID, err)
@@ -222,7 +222,7 @@ func processNameUpdates(identitiesToUpdate map[string]string) {
 		return
 	}
 
-	// Wandle die Map in eine Slice von PlayerIdentity-Structs um, die GORM versteht.
+	// Convert the map into a slice of PlayerIdentity structs that GORM understands.
 	var identitySlice []models.PlayerIdentity
 	for guid, name := range identitiesToUpdate {
 		identitySlice = append(identitySlice, models.PlayerIdentity{
