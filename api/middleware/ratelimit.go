@@ -34,7 +34,7 @@ func GinLimitMiddleware(limiter *limit.Limiter) gin.HandlerFunc {
 	}
 }
 
-// CreateRateLimiter erstellt eine neue Rate-Limiter-Instanz.
+// CreateRateLimiter creates a new rate limiter instance.
 func CreateRateLimiter(formattedRate string) (*limit.Limiter, error) {
 	rate, err := limit.NewRateFromFormatted(formattedRate)
 	if err != nil {

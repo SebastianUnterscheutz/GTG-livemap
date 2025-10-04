@@ -34,10 +34,10 @@ func (MapConfig) TableName() string {
 }
 
 type Server struct {
-	// Der Primärschlüssel ist jetzt eine UUID, gespeichert als effizienter 16-Byte-Binärwert.
+	// The primary key is now a UUID, stored as an efficient 16-byte binary value.
 	ID uuid.UUID `gorm:"type:varchar(36);primary_key"`
 
-	// Fremdschlüssel bleiben numerisch.
+	// Foreign keys remain numeric.
 	OwnerID     uint64 `gorm:"index"`
 	MapConfigID uint   `gorm:"not null"`
 
@@ -48,7 +48,7 @@ type Server struct {
 	IsListed       bool   `gorm:"default:false;index"`
 	MaxStorageDays int    `gorm:"default:7"`
 
-	// Konfiguration für den Log-Fetcher
+	// Configuration for the log fetcher
 	LogSourceType                  string `gorm:"type:enum('api','ftp','sftp');default:'api'"`
 	FtpHost                        string `gorm:"size:255"`
 	FtpPort                        int    `gorm:"default:21"`
@@ -65,7 +65,7 @@ type Server struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	// GORM-Relationen (für Preloads)
+	// GORM relations (for preloads)
 	MapConfig MapConfig `gorm:"foreignKey:MapConfigID"`
 }
 

@@ -31,9 +31,9 @@ func MeHandler(c *gin.Context) {
 	})
 }
 
-// SearchUsersHandler searches for Benutzern anhand eines Namens-Präfixes.
+// SearchUsersHandler searches for users based on a name prefix.
 func SearchUsersHandler(c *gin.Context) {
-	// Only logged-in Benutzer dürfen andere Benutzer suchen.
+	// Only logged-in users are allowed to search for other users.
 	searchQuery := c.Query("username")
 	if len(searchQuery) < 3 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "search query must be at least 3 characters long"})
@@ -44,7 +44,7 @@ func SearchUsersHandler(c *gin.Context) {
 	// Suche nach Benutzern, deren Name mit dem Query beginnt (LIKE 'name%')
 	database.DB.Where("username LIKE ?", searchQuery+"%").Limit(10).Find(&users)
 
-	// Send only sichere Daten zurück
+	// Send only safe data
 	type UserSearchResponse struct {
 		ID       uint64 `json:"id,string"`
 		Username string `json:"username"`
@@ -60,7 +60,7 @@ func SearchUsersHandler(c *gin.Context) {
 var discordAvatarURLRegex = regexp.MustCompile(`.*/avatars/(\d+)/([a-zA-Z0-9_]+)\.png.*`)
 
 // toProxyAvatarURL konvertiert eine volle Discord-URL in unsere lokale Proxy-URL.
-// If the URL doesn't match, gibt sie einen leeren String zurück.
+// If the URL doesn't match, it returns an empty string.
 func toProxyAvatarURL(discordURL string) string {
 	matches := discordAvatarURLRegex.FindStringSubmatch(discordURL)
 	if len(matches) == 3 {
@@ -105,7 +105,7 @@ func AdminSetServerLimitHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully set server limit for user %d to %d.", targetUserID, req.MaxServers)})
 }
 
-// AdminGetAllUsersHandler fetches all Benutzer mit Zusatzinformationen für das Admin-Dashboard.
+// AdminGetAllUsersHandler fetches all users with additional information for the admin dashboard.
 func AdminGetAllUsersHandler(c *gin.Context) {
 	var users []models.User
 	database.DB.Find(&users)
@@ -122,7 +122,7 @@ func AdminGetAllUsersHandler(c *gin.Context) {
 		serverCounts[result.OwnerID] = result.Count
 	}
 
-	// The response structure that alle needed Daten enthält
+	// The response structure that contains all needed data
 	type AdminUserResponse struct {
 		ID               uint64 `json:"id,string"`
 		Username         string `json:"username"`

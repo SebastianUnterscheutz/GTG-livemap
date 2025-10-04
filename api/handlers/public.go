@@ -79,7 +79,7 @@ func GetTimestampsHandler(c *gin.Context) {
 			})
 			return
 		}
-		// If cache is empty, weiter mit Datenbankabfrage für die letzten 3 Stunden
+		// If cache is empty, continue with database query for the last 3 Stunden
 		threeHoursAgo := time.Now().UTC().Add(-3 * time.Hour)
 		query = query.Where("event_timestamp >= ?", threeHoursAgo)
 	} else {
@@ -243,7 +243,7 @@ func GetDamageEventsByTimeHandler(c *gin.Context) {
 
 	if errResponse, statusCode := CheckServerAccess(c, serverID); errResponse != nil {
 		c.JSON(statusCode, errResponse)
-		return // Wichtig: Bricht die Ausführung ab, wenn kein Zugriff besteht.
+		return // Important: Aborts execution if no access exists.
 	}
 
 	// Wir definieren ein kleines Zeitfenster um den Abfragezeitpunkt,
@@ -323,7 +323,7 @@ func GetHeatmapHandler(c *gin.Context) {
 
 	if errResponse, statusCode := CheckServerAccess(c, serverID); errResponse != nil {
 		c.JSON(statusCode, errResponse)
-		return // Wichtig: Bricht die Ausführung ab, wenn kein Zugriff besteht.
+		return // Important: Aborts execution if no access exists.
 	}
 
 	var positions []models.PlayerPosition

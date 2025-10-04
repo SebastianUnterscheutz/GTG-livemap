@@ -27,7 +27,7 @@ func GetUserServersHandler(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	userIDUint64 := userID.(uint64)
 
-	// This structure contains ALLE Felder für Owner/Admins
+	// This structure contains ALL fields for Owner/Admins
 	type FullServerResponse struct {
 		ID                uuid.UUID        `json:"id"`
 		Name              string           `json:"name"`
@@ -44,7 +44,7 @@ func GetUserServersHandler(c *gin.Context) {
 		HasSshKeySet      bool             `json:"has_ssh_key_set"`
 	}
 
-	// ★★★ NEUE STRUKTUR FÜR GETEILTE SERVER ★★★
+	// ★★★ NEUE STRUKTUR FOR SHARED SERVER ★★★
 	// This structure contains nur die absolut notwendigen Informationen.
 	type SharedServerResponse struct {
 		ID        uuid.UUID        `json:"id"`
@@ -84,7 +84,7 @@ func GetUserServersHandler(c *gin.Context) {
 		}
 	}
 
-	// ★★★ NEUE HELFERFUNKTION FÜR GETEILTE SERVER ★★★
+	// ★★★ NEUE HELFERFUNKTION FOR SHARED SERVER ★★★
 	makeSharedResponse := func(s models.Server) SharedServerResponse {
 		s.MapConfig.TilesURL = rewriteTilesURL(s.MapConfig.TilesURL)
 		return SharedServerResponse{
@@ -183,7 +183,7 @@ func CreateServerHandler(c *gin.Context) {
 		maxServersLimit = 10
 	}
 
-	// 3. Zähle die aktuellen Server des Benutzers.
+	// 3. Count the current servers of the user.
 	var serverCount int64
 	database.DB.Model(&models.Server{}).Where("owner_id = ?", userID.(uint64)).Count(&serverCount)
 
@@ -346,7 +346,7 @@ func UpdateServerHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "server updated successfully"})
 }
 
-// DeleteServerHandler deletes a server und alle zugehörigen Daten.
+// DeleteServerHandler deletes a server and all associated data.
 func DeleteServerHandler(c *gin.Context) {
 	serverIDStr := c.Param("id")
 	serverID, _ := uuid.Parse(serverIDStr)
@@ -392,7 +392,7 @@ func DeleteServerHandler(c *gin.Context) {
 		log.Printf("WARN: Konnte Dashboard-Cache für User %d nicht löschen: %v", serverToDelete.OwnerID, err)
 	}
 
-	// 2. Lösche den Timeline-Cache des gelöschten Servers.
+	// 2. Delete the timeline cache of the deleted server.
 	timelineCacheKey := fmt.Sprintf(cache.RecentTimestampsCacheKey, serverIDStr)
 	if err := cache.Delete(timelineCacheKey); err != nil {
 		log.Printf("WARN: Konnte Timeline-Cache für Server %s nicht löschen: %v", serverIDStr, err)

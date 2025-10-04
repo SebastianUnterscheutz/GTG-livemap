@@ -21,7 +21,7 @@ var (
 	CookieStore *sessions.CookieStore // WAR `cookieStore`
 )
 
-// apiKeyCacheEntry stores all needed IDs für einen Server.
+// apiKeyCacheEntry stores all needed IDs for a server.
 type apiKeyCacheEntry struct {
 	serverID    uuid.UUID
 	mapConfigID uint // ★★★ ADDED ★★★
@@ -97,7 +97,7 @@ func APIKeyAuthMiddleware() gin.HandlerFunc {
 
 		log.Printf("API Key for server %s (map %d) validated and cached.", matchedServer.ID, matchedServer.MapConfigID)
 
-		// Set both values in the context für den current request.
+		// Set both values in the context for the current request.
 		c.Set("server_id", matchedServer.ID)
 		c.Set("map_config_id", matchedServer.MapConfigID)
 		c.Next()
