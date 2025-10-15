@@ -98,7 +98,7 @@ func (Faction) TableName() string {
 
 type PlayerPosition struct {
 	ID             uint      `gorm:"primaryKey;autoIncrement:false"`
-	EventTimestamp time.Time `gorm:"primaryKey;index:idx_server_player_time"`
+	EventTimestamp time.Time `gorm:"primaryKey"`
 	PlayerGUID     string    `gorm:"type:text;index:idx_server_player_time"`
 	ServerID       uuid.UUID `gorm:"type:uuid;index:idx_server_player_time"`
 	FactionID      uint      `gorm:"not null"`
@@ -174,7 +174,7 @@ func (User) TableName() string {
 
 type DamageEvent struct {
 	ID             uint      `gorm:"primaryKey;autoIncrement:false"`
-	EventTimestamp time.Time `gorm:"primaryKey;index:idx_server_event_time"`
+	EventTimestamp time.Time `gorm:"primaryKey"`
 	ServerID       uuid.UUID `gorm:"type:uuid;index:idx_server_event_time"`
 	KillerGUID     string    `gorm:"type:text;not null"`
 	VictimGUID     string    `gorm:"type:text;not null"`
