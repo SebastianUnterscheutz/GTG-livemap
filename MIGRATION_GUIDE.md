@@ -1,6 +1,6 @@
-# Migration Guide: MariaDB to PostgreSQL
+# Migration Guide: MariaDB to PostgreSQL with TimescaleDB
 
-This guide helps you migrate an existing GTG Live Map installation from MariaDB to PostgreSQL.
+This guide helps you migrate an existing GTG Live Map installation from MariaDB to PostgreSQL with TimescaleDB extension for optimized time-series data storage.
 
 ## Prerequisites
 
@@ -83,7 +83,10 @@ If you have minimal data or can afford to start fresh:
    docker-compose up -d
    ```
 
-2. The application will automatically create the PostgreSQL schema on first run.
+2. The application will automatically:
+   - Create the PostgreSQL schema
+   - Enable the TimescaleDB extension
+   - Convert `player_positions` and `damage_events` tables to TimescaleDB hypertables for optimized time-series storage
 
 3. Reconfigure your servers in the dashboard.
 
@@ -181,15 +184,56 @@ If you encounter schema-related errors:
    docker-compose restart app
    ```
 
+### TimescaleDB Issues
+
+If you encounter TimescaleDB-related errors:
+
+1. Verify that the TimescaleDB extension is enabled:
+   ```bash
+   docker-compose exec postgres psql -U gtglivemap -d gtglivemap -c "SELECT * FROM pg_extension WHERE extname = 'timescaledb';"
+   ```
+
+2. Check if hypertables were created successfully:
+   ```bash
+   docker-compose exec postgres psql -U gtglivemap -d gtglivemap -c "SELECT * FROM timescaledb_information.hypertables;"
+   ```
+
+3. If hypertables weren't created, you can manually create them:
+   ```bash
+   docker-compose exec postgres psql -U gtglivemap -d gtglivemap -c "SELECT create_hypertable('player_positions', 'event_timestamp', if_not_exists => TRUE);"
+   docker-compose exec postgres psql -U gtglivemap -d gtglivemap -c "SELECT create_hypertable('damage_events', 'event_timestamp', if_not_exists => TRUE);"
+   ```
+
 ### Performance Optimization
 
-After migration, consider these PostgreSQL optimizations:
+After migration, consider these PostgreSQL/TimescaleDB optimizations:
 
-1. Create additional indexes for frequently queried columns
-2. Adjust `work_mem` and `shared_buffers` in PostgreSQL configuration
-3. Enable connection pooling if running multiple app instances
+1. **TimescaleDB-specific**:
+   - Configure data retention policies to automatically remove old data
+   - Enable compression for older chunks to save disk space
+   - Tune chunk intervals based on your data ingestion rate
+
+2. **PostgreSQL general**:
+   - Create additional indexes for frequently queried columns
+   - Adjust `work_mem` and `shared_buffers` in PostgreSQL configuration
+   - Enable connection pooling if running multiple app instances
+
+Example retention policy (keeps data for 90 days):
+```sql
+SELECT add_retention_policy('player_positions', INTERVAL '90 days');
+SELECT add_retention_policy('damage_events', INTERVAL '90 days');
+```
 
 ## Key Differences
+
+### Database Technology
+
+- **Database**: MariaDB → PostgreSQL with TimescaleDB extension
+- **Time-Series Tables**: `player_positions` and `damage_events` are now TimescaleDB hypertables, providing:
+  - Automatic data partitioning by time
+  - Optimized query performance for time-based queries
+  - Built-in data retention policies
+  - Compression for older data
 
 ### Data Types
 

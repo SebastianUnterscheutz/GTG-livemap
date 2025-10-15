@@ -22,6 +22,7 @@ A real-time, feature-rich tactical live map for Arma Reforger servers. Built wit
     -   **Pull Method:** A scalable background worker fetches damage/kill logs automatically via FTP, FTPS, or SFTP (with password or SSH key auth).
 -   **Powerful Server Management API:** Automate server administration tasks like changing maps or managing user access directly via the API, perfect for integration with game server panels or Discord bots.
 -   **Built for Scale:** Decoupled architecture using Redis for job queuing and session management allows for horizontal scaling of web and worker instances.
+-   **TimescaleDB Integration:** Position and damage event data are stored in TimescaleDB hypertables for optimized time-series data storage and querying, enabling efficient data retention policies and faster queries on historical data.
 -   **Secure by Design:** Rate limiting, hashed API keys, encrypted credentials, and server-side validation protect the platform.
 
 ## Getting Started

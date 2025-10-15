@@ -1,6 +1,6 @@
 # Docker Compose file for the [GTG] Live Map application.
 # Defines the services required to run the entire stack:
-# - PostgreSQL: The main database for storing all persistent data.
+# - PostgreSQL with TimescaleDB: The main database for storing all persistent data, with TimescaleDB extension for time-series optimization.
 # - Redis: Used for scalable session storage and as a job queue for workers.
 # - App: The main Go application, which can be run in different modes.
 
@@ -9,7 +9,7 @@ version: '3.8'
 services:
   postgres:
     container_name: gtg-livemap-postgres
-    image: postgres:16-alpine
+    image: timescale/timescaledb:latest-pg16
     restart: always
     environment:
       POSTGRES_USER: gtglivemap
