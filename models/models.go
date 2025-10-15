@@ -83,7 +83,7 @@ func (s *Server) BeforeCreate(tx *gorm.DB) (err error) {
 
 type Faction struct {
 	ID        uint      `gorm:"primaryKey"`
-	ServerID  uuid.UUID `gorm:"type:uuid;index"`
+	ServerID  uuid.UUID `gorm:"type:uuid;uniqueIndex:idx_server_faction_name"`
 	Name      string    `gorm:"size:100;not null;uniqueIndex:idx_server_faction_name"`
 	ColorR    float64
 	ColorG    float64
