@@ -6,7 +6,7 @@ import (
 	"gtglivemap/models" // <--- ANGEPASST
 	"log"
 
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -14,11 +14,11 @@ var DB *gorm.DB
 
 func Connect() {
 	cfg := config.AppConfig.Database
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=UTC",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName)
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable TimeZone=UTC",
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName)
 
 	var err error
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -28,6 +28,16 @@ func Connect() {
 
 func Migrate() {
 	log.Println("Running database migrations...")
+	
+	// Enable TimescaleDB extension
+	log.Println("Enabling TimescaleDB extension...")
+	if err := DB.Exec("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE").Error; err != nil {
+		log.Printf("Warning: Failed to enable TimescaleDB extension: %v", err)
+		log.Println("Continuing without TimescaleDB - make sure you're using a TimescaleDB-enabled PostgreSQL image")
+	} else {
+		log.Println("TimescaleDB extension enabled successfully")
+	}
+	
 	err := DB.AutoMigrate(
 		&models.MapConfig{},
 		&models.Server{},
@@ -44,6 +54,35 @@ func Migrate() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 	log.Println("Database migration completed")
+	
+	// Convert time-series tables to TimescaleDB hypertables
+	log.Println("Converting time-series tables to TimescaleDB hypertables...")
+	
+	// Convert player_positions table to hypertable
+	if err := DB.Exec(`
+		SELECT create_hypertable('player_positions', 'event_timestamp',
+			chunk_time_interval => INTERVAL '1 day',
+			if_not_exists => TRUE
+		)
+	`).Error; err != nil {
+		log.Printf("Warning: Failed to convert player_positions to hypertable: %v", err)
+	} else {
+		log.Println("player_positions table converted to hypertable successfully")
+	}
+	
+	// Convert damage_events table to hypertable
+	if err := DB.Exec(`
+		SELECT create_hypertable('damage_events', 'event_timestamp',
+			chunk_time_interval => INTERVAL '1 day',
+			if_not_exists => TRUE
+		)
+	`).Error; err != nil {
+		log.Printf("Warning: Failed to convert damage_events to hypertable: %v", err)
+	} else {
+		log.Println("damage_events table converted to hypertable successfully")
+	}
+	
+	log.Println("TimescaleDB hypertable conversion completed")
 }
 
 func Seed() {
