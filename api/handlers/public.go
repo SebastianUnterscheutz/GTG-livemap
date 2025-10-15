@@ -137,7 +137,6 @@ func GetTimestampsHandler(c *gin.Context) {
 	})
 }
 
-// in api/handlers/public_routes.go
 func GetPositionsByTimeHandler(c *gin.Context) {
 	serverIDStr := c.Param("server_id")
 	timestampStr := c.Param("timestamp")
@@ -156,7 +155,6 @@ func GetPositionsByTimeHandler(c *gin.Context) {
 		return
 	}
 
-	// The response structure remains unchanged.
 	type FactionResponse struct {
 		Name   string  `json:"name"`
 		ColorR float64 `json:"colorR"`
@@ -174,8 +172,7 @@ func GetPositionsByTimeHandler(c *gin.Context) {
 	}
 
 	cacheKey := fmt.Sprintf("positions:%s:%s", serverIDStr, timestampStr)
-	var cachedResponse []PositionResponse // Define the target structure
-
+	var cachedResponse []PositionResponse
 	if err := cache.Get(cacheKey, &cachedResponse); err == nil {
 		c.JSON(http.StatusOK, cachedResponse)
 		return
@@ -186,21 +183,44 @@ func GetPositionsByTimeHandler(c *gin.Context) {
 
 	var positions []models.PlayerPosition
 
-	// The subquery is adjusted to consider ONLY positions in the defined time window.
-	subQuery := database.DB.Model(&models.PlayerPosition{}).
-		Select("MAX(id)").
-		Where("server_id = ? AND event_timestamp BETWEEN ? AND ?", serverID, windowStart, targetTime).
-		Group("player_guid")
+	err = database.DB.Raw(`
+        SELECT * FROM (
+            SELECT *, ROW_NUMBER() OVER(PARTITION BY player_guid ORDER BY event_timestamp DESC) as rn
+            FROM player_positions
+            WHERE server_id = ? AND event_timestamp BETWEEN ? AND ?
+        ) subquery
+        WHERE rn = 1`, serverID, windowStart, targetTime).Scan(&positions).Error
 
-	// The main query remains the same, it fetches data for the IDs found in the subQuery.
-	err = database.DB.Preload("Faction").Where("id IN (?)", subQuery).Find(&positions).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database query failed for positions"})
 		return
 	}
 
+	if len(positions) == 0 {
+		c.JSON(http.StatusOK, []PositionResponse{})
+		return
+	}
+
+	factionIDs := make(map[uint]bool)
+	for _, pos := range positions {
+		factionIDs[pos.FactionID] = true
+	}
+	uniqueFactionIDs := make([]uint, 0, len(factionIDs))
+	for id := range factionIDs {
+		uniqueFactionIDs = append(uniqueFactionIDs, id)
+	}
+
+	var factions []models.Faction
+	database.DB.Where("id IN (?)", uniqueFactionIDs).Find(&factions)
+
+	factionMap := make(map[uint]models.Faction)
+	for _, f := range factions {
+		factionMap[f.ID] = f
+	}
+
 	response := make([]PositionResponse, len(positions))
 	for i, pos := range positions {
+		faction := factionMap[pos.FactionID]
 		response[i] = PositionResponse{
 			PlayerGUID:     pos.PlayerGUID,
 			EventTimestamp: pos.EventTimestamp.Unix(),
@@ -209,13 +229,14 @@ func GetPositionsByTimeHandler(c *gin.Context) {
 			RotationX:      pos.RotationX,
 			InVehicle:      pos.InVehicle,
 			Faction: FactionResponse{
-				Name:   pos.Faction.Name,
-				ColorR: pos.Faction.ColorR,
-				ColorG: pos.Faction.ColorG,
-				ColorB: pos.Faction.ColorB,
+				Name:   faction.Name,
+				ColorR: faction.ColorR,
+				ColorG: faction.ColorG,
+				ColorB: faction.ColorB,
 			},
 		}
 	}
+
 	cache.Set(cacheKey, response, 10*time.Minute)
 	c.JSON(http.StatusOK, response)
 }
@@ -248,7 +269,6 @@ func GetDamageEventsByTimeHandler(c *gin.Context) {
 		return // Important: Aborts execution if no access exists.
 	}
 
-	// Wir definieren ein kleines Zeitfenster um den Abfragezeitpunkt,
 	// to catch events that happened shortly before.
 	timeWindowStart := targetTime.Add(-5 * time.Second) // 5 Sekunden Fenster
 
