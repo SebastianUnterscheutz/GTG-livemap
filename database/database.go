@@ -91,7 +91,6 @@ func float64Ptr(v float64) *float64 { return &v }
 func intPtr(v int) *int             { return &v }
 
 func Seed() {
-	// --- Maps Seeding ---
 	log.Println("Seeding database: Checking for map configurations...")
 
 	mapsToSeed := []models.MapConfig{
@@ -119,7 +118,9 @@ func Seed() {
 	}
 
 	for _, mapData := range mapsToSeed {
-		result := DB.FirstOrCreate(&models.MapConfig{}, models.MapConfig{Name: mapData.Name}, mapData)
+		result := DB.Where(models.MapConfig{Name: mapData.Name}).
+			Attrs(mapData).
+			FirstOrCreate(&models.MapConfig{})
 		if result.Error != nil {
 			log.Printf("Error seeding map %s: %v", mapData.Name, result.Error)
 		} else if result.RowsAffected > 0 {
