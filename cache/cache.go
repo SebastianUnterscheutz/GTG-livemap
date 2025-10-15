@@ -89,7 +89,7 @@ func updateRecentTimestampsCache() {
 		database.DB.Model(&models.PlayerPosition{}).
 			Where("server_id = ? AND event_timestamp >= ?", server.ID, threeHoursAgo).
 			Order("event_timestamp asc").
-			Pluck("DISTINCT FLOOR(UNIX_TIMESTAMP(event_timestamp))", &timestamps)
+			Pluck("DISTINCT FLOOR(EXTRACT(EPOCH FROM event_timestamp))", &timestamps)
 
 		if len(timestamps) > 0 {
 			// Wir speichern die Daten als einfaches JSON-Array.
@@ -102,7 +102,6 @@ func updateRecentTimestampsCache() {
 
 const RecentDamageEventTimestampsCacheKey = "damagetimeline:recent:%s" // %s wird durch die serverID ersetzt
 
-// ★★★ NEU: Worker für Damage-Event-Timestamps ★★★
 // StartDamageEventTimestampsWorker is a background process that keeps the event cache up to date.
 func StartDamageEventTimestampsWorker(ctx context.Context) {
 	log.Println("Starting Recent Damage Event Timestamps Cache Worker...")
@@ -123,10 +122,7 @@ func StartDamageEventTimestampsWorker(ctx context.Context) {
 	}
 }
 
-// ★★★ NEU: Update-Funktion für den Damage-Event-Cache ★★★
 func updateDamageEventTimestampsCache() {
-	// We can reuse the same logic for finding active servers.
-	// A server that sends position data is a good indicator of general activity.
 	var activeServers []models.Server
 	oneHourAgo := time.Now().UTC().Add(-1 * time.Hour)
 	database.DB.Model(&models.Server{}).
@@ -138,11 +134,10 @@ func updateDamageEventTimestampsCache() {
 		threeHoursAgo := time.Now().UTC().Add(-3 * time.Hour)
 		var timestamps []int64
 
-		// Holen und in Unix umwandeln. Die Query ist identisch, nur auf die "damage_events"-Tabelle bezogen.
 		database.DB.Model(&models.DamageEvent{}).
 			Where("server_id = ? AND event_timestamp >= ?", server.ID, threeHoursAgo).
 			Order("event_timestamp asc").
-			Pluck("DISTINCT FLOOR(UNIX_TIMESTAMP(event_timestamp))", &timestamps)
+			Pluck("DISTINCT FLOOR(EXTRACT(EPOCH FROM event_timestamp))", &timestamps)
 
 		if len(timestamps) > 0 {
 			// We use the new cache key.
