@@ -29,13 +29,22 @@ func Connect() {
 func Migrate() {
 	log.Println("Running database migrations...")
 
-	// Enable TimescaleDB extension
 	log.Println("Enabling TimescaleDB extension...")
 	if err := DB.Exec("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE").Error; err != nil {
 		log.Printf("Warning: Failed to enable TimescaleDB extension: %v", err)
 		log.Println("Continuing without TimescaleDB - make sure you're using a TimescaleDB-enabled PostgreSQL image")
 	} else {
 		log.Println("TimescaleDB extension enabled successfully")
+	}
+
+	log.Println("Checking for and removing outdated primary keys...")
+	if DB.Migrator().HasConstraint("player_positions", "player_positions_pkey") {
+		DB.Exec("ALTER TABLE player_positions DROP CONSTRAINT player_positions_pkey")
+		log.Println("Dropped old primary key from 'player_positions'")
+	}
+	if DB.Migrator().HasConstraint("damage_events", "damage_events_pkey") {
+		DB.Exec("ALTER TABLE damage_events DROP CONSTRAINT damage_events_pkey")
+		log.Println("Dropped old primary key from 'damage_events'")
 	}
 
 	err := DB.AutoMigrate(
@@ -55,34 +64,27 @@ func Migrate() {
 	}
 	log.Println("Database migration completed")
 
-	// Convert time-series tables to TimescaleDB hypertables
 	log.Println("Converting time-series tables to TimescaleDB hypertables...")
-
-	// Convert player_positions table to hypertable
 	if err := DB.Exec(`
-		SELECT create_hypertable('player_positions', 'event_timestamp',
-			chunk_time_interval => INTERVAL '1 day',
-			if_not_exists => TRUE
-		)
-	`).Error; err != nil {
+       SELECT create_hypertable('player_positions', 'event_timestamp',
+          chunk_time_interval => INTERVAL '1 day',
+          if_not_exists => TRUE
+       )
+    `).Error; err != nil {
 		log.Printf("Warning: Failed to convert player_positions to hypertable: %v", err)
 	} else {
 		log.Println("player_positions table converted to hypertable successfully")
 	}
-
-	// Convert damage_events table to hypertable
 	if err := DB.Exec(`
-		SELECT create_hypertable('damage_events', 'event_timestamp',
-			chunk_time_interval => INTERVAL '1 day',
-			if_not_exists => TRUE
-		)
-	`).Error; err != nil {
+       SELECT create_hypertable('damage_events', 'event_timestamp',
+          chunk_time_interval => INTERVAL '1 day',
+          if_not_exists => TRUE
+       )
+    `).Error; err != nil {
 		log.Printf("Warning: Failed to convert damage_events to hypertable: %v", err)
 	} else {
 		log.Println("damage_events table converted to hypertable successfully")
 	}
-
-	log.Println("TimescaleDB hypertable conversion completed")
 }
 
 func Seed() {
