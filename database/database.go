@@ -2,8 +2,8 @@ package database
 
 import (
 	"fmt"
-	"gtglivemap/config" // <--- ANGEPASST
-	"gtglivemap/models" // <--- ANGEPASST
+	"gtglivemap/config"
+	"gtglivemap/models"
 	"log"
 
 	"gorm.io/driver/postgres"
@@ -28,7 +28,7 @@ func Connect() {
 
 func Migrate() {
 	log.Println("Running database migrations...")
-	
+
 	// Enable TimescaleDB extension
 	log.Println("Enabling TimescaleDB extension...")
 	if err := DB.Exec("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE").Error; err != nil {
@@ -37,7 +37,7 @@ func Migrate() {
 	} else {
 		log.Println("TimescaleDB extension enabled successfully")
 	}
-	
+
 	err := DB.AutoMigrate(
 		&models.MapConfig{},
 		&models.Server{},
@@ -54,10 +54,10 @@ func Migrate() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 	log.Println("Database migration completed")
-	
+
 	// Convert time-series tables to TimescaleDB hypertables
 	log.Println("Converting time-series tables to TimescaleDB hypertables...")
-	
+
 	// Convert player_positions table to hypertable
 	if err := DB.Exec(`
 		SELECT create_hypertable('player_positions', 'event_timestamp',
@@ -69,7 +69,7 @@ func Migrate() {
 	} else {
 		log.Println("player_positions table converted to hypertable successfully")
 	}
-	
+
 	// Convert damage_events table to hypertable
 	if err := DB.Exec(`
 		SELECT create_hypertable('damage_events', 'event_timestamp',
@@ -81,12 +81,11 @@ func Migrate() {
 	} else {
 		log.Println("damage_events table converted to hypertable successfully")
 	}
-	
+
 	log.Println("TimescaleDB hypertable conversion completed")
 }
 
 func Seed() {
-	// Erstellen einer Beispiel-Kartenkonfiguration, falls noch keine existiert
 	var mapCount int64
 	DB.Model(&models.MapConfig{}).Count(&mapCount)
 	if mapCount == 0 {

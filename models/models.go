@@ -34,21 +34,17 @@ func (MapConfig) TableName() string {
 }
 
 type Server struct {
-	// The primary key is now a UUID, stored as native PostgreSQL UUID type.
-	ID uuid.UUID `gorm:"type:uuid;primary_key"`
+	ID uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 
-	// Foreign keys remain numeric.
 	OwnerID     uint64 `gorm:"index"`
 	MapConfigID uint   `gorm:"not null"`
 
-	// Allgemeine Server-Informationen
 	Name           string `gorm:"size:100;not null"`
 	APIKey         string `gorm:"size:255;unique;not null"`
 	IsPublic       bool   `gorm:"default:false"`
 	IsListed       bool   `gorm:"default:false;index"`
 	MaxStorageDays int    `gorm:"default:7"`
 
-	// Configuration for the log fetcher
 	LogSourceType                  string `gorm:"type:varchar(10);default:'api';check:log_source_type IN ('api', 'ftp', 'sftp')"`
 	FtpHost                        string `gorm:"size:255"`
 	FtpPort                        int    `gorm:"default:21"`
@@ -101,10 +97,10 @@ func (Faction) TableName() string {
 }
 
 type PlayerPosition struct {
-	ID             uint      `gorm:"primaryKey"`
-	PlayerGUID     string    `gorm:"size:255;index:idx_server_player_time"`
+	ID             uint      `gorm:"primaryKey;autoIncrement:false"`
+	EventTimestamp time.Time `gorm:"primaryKey;index:idx_server_player_time"`
+	PlayerGUID     string    `gorm:"type:text;index:idx_server_player_time"`
 	ServerID       uuid.UUID `gorm:"type:uuid;index:idx_server_player_time"`
-	EventTimestamp time.Time `gorm:"index:idx_server_player_time"`
 	FactionID      uint      `gorm:"not null"`
 	AbsolutePosX   float64
 	AbsolutePosY   float64
@@ -177,15 +173,15 @@ func (User) TableName() string {
 }
 
 type DamageEvent struct {
-	ID             uint      `gorm:"primaryKey"`
+	ID             uint      `gorm:"primaryKey;autoIncrement:false"`
+	EventTimestamp time.Time `gorm:"primaryKey;index:idx_server_event_time"`
 	ServerID       uuid.UUID `gorm:"type:uuid;index:idx_server_event_time"`
-	EventTimestamp time.Time `gorm:"index:idx_server_event_time"`
-	KillerGUID     string    `gorm:"size:255;not null"`
-	VictimGUID     string    `gorm:"size:255;not null"`
-	WeaponName     string    `gorm:"size:100"`
+	KillerGUID     string    `gorm:"type:text;not null"`
+	VictimGUID     string    `gorm:"type:text;not null"`
+	WeaponName     string    `gorm:"type:text"`
 	DamageAmount   float64
 	Distance       float64
-	HitZone        string `gorm:"size:100"`
+	HitZone        string `gorm:"type:text"`
 	IsFriendlyFire bool
 	IsKill         bool `gorm:"default:false"`
 }
