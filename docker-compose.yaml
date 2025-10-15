@@ -1,17 +1,55 @@
 # Docker Compose file for the [GTG] Live Map application.
 # Defines the services required to run the entire stack:
-# - MariaDB: The main database for storing all persistent data.
+# - PostgreSQL: The main database for storing all persistent data.
 # - Redis: Used for scalable session storage and as a job queue for workers.
 # - App: The main Go application, which can be run in different modes.
 
 version: '3.8'
 
 services:
+  postgres:
+    container_name: gtg-livemap-postgres
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: gtglivemap
+      POSTGRES_PASSWORD: changeme_postgres_password
+      POSTGRES_DB: gtglivemap
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gtglivemap"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    container_name: gtg-livemap-redis
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --requirepass changeme_redis_password
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   app:
     container_name: gtg-livemap-app
     # Tells Docker Compose to build the image using the Dockerfile in the current directory.
     build: .
     restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       # Mounts the local config.yaml file into the container in read-only mode.
       # This allows you to change the configuration without rebuilding the image.
@@ -21,7 +59,13 @@ services:
       # It overrides the default CMD in the Dockerfile.
       # Options: 'all', 'web', 'scheduler', 'consumer'
       - APP_MODE=web
+    ports:
+      - "8080:8080"
     # The command that will be executed when the container starts.
     # It runs the compiled Go binary and passes the value of the APP_MODE
     # environment variable as a command-line argument.
     command: /gtg-livemap-server -mode ${APP_MODE}
+
+volumes:
+  postgres-data:
+  redis-data:

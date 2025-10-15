@@ -46,13 +46,16 @@ You need to edit two configuration files before the first start.
 **A) Docker Compose (`docker-compose.yaml`)**
 This file orchestrates the services. You **must** set secure passwords here.
 -   Open `docker-compose.yaml`.
--   Change the `MYSQL_ROOT_PASSWORD` to a strong, unique password.
--   Change the `MYSQL_USER` and `MYSQL_PASSWORD` if you wish.
+-   Change the `POSTGRES_PASSWORD` to a strong, unique password.
+-   Change the `POSTGRES_USER` and `POSTGRES_DB` if you wish.
+-   Change the Redis password in the redis service command (`--requirepass`).
 
 **B) Application Configuration (`config.yaml`)**
 This file contains all the secrets for the application itself.
 -   Open `config.yaml`.
--   Make sure the database `user`, `password`, and `dbname` match the `MYSQL_...` variables you set in `docker-compose.yaml`.
+-   Make sure the database `host`, `port`, `user`, `password`, and `dbname` match the `POSTGRES_...` variables you set in `docker-compose.yaml`.
+-   The default PostgreSQL port is `5432`. If using Docker Compose, set `host: "postgres"` to use the service name.
+-   Update the Redis configuration to match your Redis service (e.g., `addr: "redis:6379"` when using Docker Compose).
 -   **Crucially**, set your Discord Application secrets under the `discord` section.
 -   Change the `session.secret` and `encryption.aes_key` to long, random, and unique strings.
 

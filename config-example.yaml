@@ -1,6 +1,6 @@
 database:
   host: "HOSTNAME"
-  port: 3306
+  port: 5432
   user: "USERNAME"
   password: "PASSWORT"
   dbname: "DBNAME"

@@ -11,7 +11,7 @@ type MapConfig struct {
 	ID              uint   `gorm:"primaryKey"`
 	Name            string `gorm:"size:100;not null;unique"`
 	TilesURL        string `gorm:"size:255;not null"`
-	CrsType         string `gorm:"type:enum('CustomSimple','Simple');default:'CustomSimple'"`
+	CrsType         string `gorm:"type:varchar(20);default:'CustomSimple';check:crs_type IN ('CustomSimple', 'Simple')"`
 	BoundsSWX       float64
 	BoundsSWY       float64
 	BoundsNEX       float64
@@ -34,8 +34,8 @@ func (MapConfig) TableName() string {
 }
 
 type Server struct {
-	// The primary key is now a UUID, stored as an efficient 16-byte binary value.
-	ID uuid.UUID `gorm:"type:varchar(36);primary_key"`
+	// The primary key is now a UUID, stored as native PostgreSQL UUID type.
+	ID uuid.UUID `gorm:"type:uuid;primary_key"`
 
 	// Foreign keys remain numeric.
 	OwnerID     uint64 `gorm:"index"`
@@ -49,12 +49,12 @@ type Server struct {
 	MaxStorageDays int    `gorm:"default:7"`
 
 	// Configuration for the log fetcher
-	LogSourceType                  string `gorm:"type:enum('api','ftp','sftp');default:'api'"`
+	LogSourceType                  string `gorm:"type:varchar(10);default:'api';check:log_source_type IN ('api', 'ftp', 'sftp')"`
 	FtpHost                        string `gorm:"size:255"`
 	FtpPort                        int    `gorm:"default:21"`
 	FtpUser                        string `gorm:"size:255"`
-	EncryptedPassword              []byte `gorm:"type:longblob"`
-	EncryptedSshKey                []byte `gorm:"type:longblob"`
+	EncryptedPassword              []byte `gorm:"type:bytea"`
+	EncryptedSshKey                []byte `gorm:"type:bytea"`
 	UseFtps                        bool   `gorm:"default:false"`
 	ProfileFolderPath              string `gorm:"size:255"`
 	LastProcessedDamageTimestamp   *time.Time
@@ -87,7 +87,7 @@ func (s *Server) BeforeCreate(tx *gorm.DB) (err error) {
 
 type Faction struct {
 	ID        uint      `gorm:"primaryKey"`
-	ServerID  uuid.UUID `gorm:"type:varchar(36);index"`
+	ServerID  uuid.UUID `gorm:"type:uuid;index"`
 	Name      string    `gorm:"size:100;not null;uniqueIndex:idx_server_faction_name"`
 	ColorR    float64
 	ColorG    float64
@@ -103,7 +103,7 @@ func (Faction) TableName() string {
 type PlayerPosition struct {
 	ID             uint      `gorm:"primaryKey"`
 	PlayerGUID     string    `gorm:"size:255;index:idx_server_player_time"`
-	ServerID       uuid.UUID `gorm:"type:varchar(36);index:idx_server_player_time"`
+	ServerID       uuid.UUID `gorm:"type:uuid;index:idx_server_player_time"`
 	EventTimestamp time.Time `gorm:"index:idx_server_player_time"`
 	FactionID      uint      `gorm:"not null"`
 	AbsolutePosX   float64
@@ -166,7 +166,7 @@ type User struct {
 	ID          uint64 `gorm:"primaryKey"` // Discord User ID ist der primäre Schlüssel
 	Username    string `gorm:"size:100"`
 	Avatar      string `gorm:"size:255"`
-	AccountType string `gorm:"type:enum('owner','admin');default:'owner'"`
+	AccountType string `gorm:"type:varchar(10);default:'owner';check:account_type IN ('owner', 'admin')"`
 	MaxServers  uint   `gorm:"default:10"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -178,7 +178,7 @@ func (User) TableName() string {
 
 type DamageEvent struct {
 	ID             uint      `gorm:"primaryKey"`
-	ServerID       uuid.UUID `gorm:"type:varchar(36);index:idx_server_event_time"`
+	ServerID       uuid.UUID `gorm:"type:uuid;index:idx_server_event_time"`
 	EventTimestamp time.Time `gorm:"index:idx_server_event_time"`
 	KillerGUID     string    `gorm:"size:255;not null"`
 	VictimGUID     string    `gorm:"size:255;not null"`
@@ -210,7 +210,7 @@ type DamageEventData struct {
 }
 type ServerAccess struct {
 	UserID    uint64    `gorm:"primaryKey"`
-	ServerID  uuid.UUID `gorm:"primaryKey;type:varchar(36)"`
+	ServerID  uuid.UUID `gorm:"primaryKey;type:uuid"`
 	CreatedAt time.Time
 
 	User   User   `gorm:"foreignKey:UserID"`

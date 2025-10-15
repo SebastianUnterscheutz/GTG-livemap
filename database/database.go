@@ -6,7 +6,7 @@ import (
 	"gtglivemap/models" // <--- ANGEPASST
 	"log"
 
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -14,11 +14,11 @@ var DB *gorm.DB
 
 func Connect() {
 	cfg := config.AppConfig.Database
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=UTC",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName)
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable TimeZone=UTC",
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName)
 
 	var err error
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}

@@ -115,7 +115,7 @@ func GetTimestampsHandler(c *gin.Context) {
 			`SELECT event_timestamp FROM
              (SELECT event_timestamp, ROW_NUMBER() OVER (ORDER BY event_timestamp) as rn, COUNT(*) OVER () as total_count
               FROM (?) as t) as ranked
-           WHERE MOD(rn, CEIL(total_count / ?)) = 1 OR rn = total_count`,
+           WHERE (rn %% CEIL(total_count / ?::float)) = 1 OR rn = total_count`,
 		)
 
 		if err := database.DB.Raw(rawSQL, subQuery, float64(MaxTimestamps)).Scan(&timestamps).Error; err != nil {
