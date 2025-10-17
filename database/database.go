@@ -68,7 +68,7 @@ func Migrate() {
 	log.Println("Converting time-series tables to TimescaleDB hypertables...")
 	if err := DB.Exec(`
        SELECT create_hypertable('player_positions', 'event_timestamp',
-          chunk_time_interval => INTERVAL '1 day',
+          chunk_time_interval => INTERVAL '1 hours',
           if_not_exists => TRUE
        )
     `).Error; err != nil {
@@ -78,7 +78,7 @@ func Migrate() {
 	}
 	if err := DB.Exec(`
        SELECT create_hypertable('damage_events', 'event_timestamp',
-          chunk_time_interval => INTERVAL '1 day',
+          chunk_time_interval => INTERVAL '1 hours',
           if_not_exists => TRUE
        )
     `).Error; err != nil {
